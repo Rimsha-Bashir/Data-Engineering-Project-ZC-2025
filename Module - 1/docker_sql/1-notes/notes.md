@@ -99,4 +99,64 @@ docker run -it \
   -p 5433:5432 \
   postgres:13
 
+docker exec -it <container_id> bash
+(execute postgres with bash^^)
+
+pgcli -h localhost -p 5432 -u root -d ny_taxi 
+- connection error 
 The problem *probably* arose because of locally installed Postgres also running on the same port (but I tested this as well... it was not active.. wonder why I got the error then(?)) 
+Solution:
+- map port to 5433
+
+Using pandas to ingest data + connect to db using sqlalchemy, psycopg2:
+Notes:
+    - create_engine() to connect to db. 
+    - for generating schema - pd.io.sql.get_schema(df, name="yellow_taxi_data", con=engine)
+    - dataset is large, so we'll read from downloaded csv file and write to sql in chunks -> df_tf = pd.read_csv("yellow_tripdata_2021-01.csv", iterator=True, chunksize=100000), df_tf is an iterator. 
+    - using for loops, iterate through every chunk/item in the iterator and pass it to sql -> df.to_sql(name="yellow_taxi_data", con=engine, if_exists='append').
+
+
+### DE Zoomcamp 1.2.3 - Connecting pgAdmin and Postgres
+
+So, in the last vids we used pgcli but it's not very convenient, so we'll try to use pgAdmin instead. 
+First course of action - we need [pgadmin container](https://hub.docker.com/r/dpage/pgadmin4/). 
+
+docker run -it \
+    -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+    -e PGADMIN_DEFAULT_PASSWORD="root" \
+    -p 8080:80 \
+    dpage/pgadmin4
+
+Now, we need to link these containers, because pgadmin container doesn't have postgres, so localhost connection fails on trying to create a server at localhost:8080. So, we create a network-- with both these containers. 
+
+Create a network : docker create network <network_name>
+
+*docker create network pg_network*
+
+Once you've created a network, run the docker containers in that network. 
+
+docker run -it \
+  -e POSTGRES_USER="root" \
+  -e POSTGRES_PASSWORD="root" \
+  -e POSTGRES_DB="ny_taxi" \
+  -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
+  -p 5433:5432 \
+  --network=pg-network \
+  --name pg-database
+  postgres:13
+
+docker run -it \
+    -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+    -e PGADMIN_DEFAULT_PASSWORD="root" \
+    -p 8080:80 \
+    --network=pg-network \
+    --name pg-admin \
+    dpage/pgadmin4
+
+Note: the --name flag is important when running postgres container after specifying the network because it's how pgAdmin recogizes postgres. 
+
+Go to [http://localhost:8080](http://localhost:8080/browser/)
+Register a server
+Connection > Hostname: pg-database (how pgAdmin recognizes postgres container)
+
+![server registration](server-registration.png){width:50px;}
