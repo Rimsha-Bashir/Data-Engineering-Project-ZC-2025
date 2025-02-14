@@ -66,3 +66,37 @@ Note:
 [YT Link](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=6)
 
 Docker Compose - Running multiple docker images. 
+
+To run the Postgres container : 
+
+docker run -it \
+  -e POSTGRES_USER="root" \
+  -e POSTGRES_PASSWORD="root" \
+  -e POSTGRES_DB="ny_taxi" \
+  -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
+  -p 5432:5432 \
+  postgres:13
+
+-e to set env variables 
+-v to perform volume mapping - host computer's folder mapped to container folder 
+-p 5432 is the std port. it's the same in the host and container.. they're mapped. 
+
+**Remember to run this in an empty directory because postgres initializes the database in the local location provided and hence, expects the folder to be empty. If not, it doesn't initialize db files to avoid corruption/overwriting existing files, i.e id the local folder was docker_sql, the command will throw an error.**
+
+I was unable to run pgcli -h localhost -p 5432 -u root -d ny_taxi command - the connection kept failing because of incorrect password (root - as specified in the docker run command above for postgres).
+Solutions tried:
+1. Used the flag --no-password to avoid the prompt
+2. Modified the file pg_hba.conf to set authentication to trust
+3. Changed the password for "root" in the Postgres shell using ALTER.
+
+None of the above solutions worked, finally changed the local port that the container port was mapped to from the default 5432 to 5433 and re-ran the docker run command as below : 
+
+docker run -it \
+  -e POSTGRES_USER="root" \
+  -e POSTGRES_PASSWORD="root" \
+  -e POSTGRES_DB="ny_taxi" \
+  -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
+  -p 5433:5432 \
+  postgres:13
+
+The problem *probably* arose because of locally installed Postgres also running on the same port (but I tested this as well... it was not active.. wonder why I got the error then(?)) 
