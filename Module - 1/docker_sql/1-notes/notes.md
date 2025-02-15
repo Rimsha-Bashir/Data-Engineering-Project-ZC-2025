@@ -142,7 +142,7 @@ docker run -it \
   -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
   -p 5433:5432 \
   --network=pg-network \
-  --name pg-database
+  --name pg-database \
   postgres:13
 
 docker run -it \
@@ -157,6 +157,96 @@ Note: the --name flag is important when running postgres container after specify
 
 Go to [http://localhost:8080](http://localhost:8080/browser/)
 Register a server
-Connection > Hostname: pg-database (how pgAdmin recognizes postgres container)
+**Connection > Hostname: pg-database (how pgAdmin recognizes postgres container)**
 
-![server registration](server-registration.png){width:50px;}
+![server registration](server-registration.png)
+**change port to 5432, because you don't want the local port, you want the docker port**
+
+
+### DE Zoomcamp 1.2.4 - Dockerizing the Ingestion Script
+
+1. Convert jupyter nb to py file (named it ingest_data.py)
+
+2. DROP TABLE yellow_taxi_data; from ny_taxi using pgAdmin4, as we're trying to add it again by running the below py file. 
+    (Previous method was creating a jupyter notebook to read from a downloaded yellow_taxix.csv file and writing to postgres using sqlalchemy. How do we improve the process by implementing the steps below? We're dockering the script (along with postgres, and pgadmin) and creating one all-purpose pipeline) 
+
+3. Modify ingest_data.py to standardize the method, create a pipeline file. Load data directly from the URL. 
+    Input variables as cmd arguments 
+    user = params.user
+    password = params.password
+    host = params.host 
+    port = params.port 
+    db = params.db
+    table_name = params.table_name
+    url = params.url
+     
+    Python run command in gitbash
+    > $ URL="https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz"
+
+    > python ingest_data.py \
+        --user=root \
+        --password=root \
+        --host=localhost \
+        --port=5432 \
+        --db=ny_taxi \
+        --table_name=yellow_taxi_data \
+        --url=${URL}
+
+    *port is 5432 because we're connecting to docker*
+
+    ![ingest_data.py](py-op.png)
+
+4. Modify Dockerfile to install required dependencies (in the container now, as we're running ingest_data.py inside it as well) and change sample-pipeline.py to ingest_data.py.
+
+5. Build the new docker image as ny_data_ingest:v0
+    docker build -t ny_data_ingest:v0 . 
+
+6. Run the docker container
+    docker run -it \
+    --network=pg-network \
+        ny_data_ingest:v0 \
+        --user=root \
+        --password=root \
+        --host=pg-database \
+        --port=5432 \
+        --db=ny_taxi \
+        --table_name=yellow_taxi_data \
+        --url=${URL}
+
+I faced some error on running the ny_data_ingest:v0 image because the ingest_data.py script was throwing an error for a line that was not in the file. (?!) 
+
+Steps undertaken:
+- Check for the content in the app/ingest_data.py file inside the ny_data_ingest:v0 container. 
+    1. **docker build --no-cache -t ny_ingest_data:v0 .** Build the img without cache overlays. 
+    1. When running the docker run command, don't supply the parameters/args-- You can bypass this by running the below  
+        **docker run --rm -it --entrypoint bash ny_ingest_data:v0**
+
+    --rm : used to automatically remove the container after it stops running.
+
+    --entrypoint : This will override the entrypoint in the Dockerfile and start a shell inside the container without running ingest_data.py, allowing you to manually check files and run commands.
+
+    2. ls -l app/ 
+
+    3. cat app/ingest_data.py 
+
+    Confirmed the file is the correct one. 
+- Check if network exists using: **docker network ps**
+- Delete all containers using docker desktop or the **docker kill** command, rerun the images for postgres and pgadmin (within the pg-network)
+- Setup the credentials for pgAdmin server in localhost:8080 
+- Build and run the ny_data_ingest:v0 image normally. (refer to step 5 & 6 of the dockerization part). 
+- Run **select count(*) from yellow_taxi_data** using pgadmin query tool to confirm whether all the chunks are updated.  
+
+
+### DE Zoomcamp 1.2.5 - Running Postgres and pgAdmin with Docker-Compose
+
+Now, we will run docker-compose to run the containers in one yaml file. 
+
+1. Create docker-compose.yml file and define the two servies - pgadmin and postgres. 
+    Note: Defining the services/containers in the same docker-compose file means they run in the same network by default. 
+2. Stop the running postgres and pgadmin container using - docker stop <container_id>
+3. Run **docker-compose up**
+4. Set up server in pgadmin at localhost:8080, name the host as pgdatabase (as specified for postgres in docker-compose)
+
+Other commands:
+Running **docker-compose down** will remove the containers + network.
+Running **docker-compose up -d** will run the docker-compose file in detach mode. We get the shell back. 
