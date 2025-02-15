@@ -250,3 +250,7 @@ Now, we will run docker-compose to run the containers in one yaml file.
 Other commands:
 Running **docker-compose down** will remove the containers + network.
 Running **docker-compose up -d** will run the docker-compose file in detach mode. We get the shell back. 
+
+### DE Zoomcamp 1.2.6 - SQL Refreshser
+
+Running SQL queries in pgAdmin after ingesting [taxi_zone_lookup.csv](https://github.com/DataTalksClub/nyc-tlc-data/releases/download/misc). 
