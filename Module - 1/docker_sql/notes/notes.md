@@ -49,7 +49,7 @@ second command to build Dockerfile that runs the sample-pipeline.py (simple py c
 ![running sample py](pipeline-run.png)
 notice the app folder created inside container as per instructions provided in the Dockerfile 
 
-```Note:
+Note:
 - WORKDIR ~ cd 
 - Docker Commands:
     - docker images - display all images 
