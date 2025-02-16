@@ -63,7 +63,7 @@ notice the app folder created inside container as per instructions provided in t
         - "-d" detaches the container from cmd line, so exiting will not close the container
         - "--name" to set a name for the container
     - docker start {container_id}/{container_name}
-    - docker stop {container_id}/{container_name}```
+    - docker stop {container_id}/{container_name}
 
 - You can always do docker run without docker pull, because if the image is not found locally, it will automatically download it from the registry. 
 - Running docker ps will giive you container_id and container_name
@@ -100,13 +100,13 @@ Solutions tried:
 
 None of the above solutions worked, finally changed the local port that the container port was mapped to from the default 5432 to 5433 and re-ran the docker run command as below : 
 
-```docker run -it \
+docker run -it \
   -e POSTGRES_USER="root" \
   -e POSTGRES_PASSWORD="root" \
   -e POSTGRES_DB="ny_taxi" \
   -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
   -p 5433:5432 \
-  postgres:13```
+  postgres:13
 
 docker exec -it <container_id> bash
 (execute postgres with bash^^)
@@ -130,21 +130,21 @@ Notes:
 So, in the last vids we used pgcli but it's not very convenient, so we'll try to use pgAdmin instead. 
 First course of action - we need [pgadmin container](https://hub.docker.com/r/dpage/pgadmin4/). 
 
-```docker run -it \
+docker run -it \
     -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
     -e PGADMIN_DEFAULT_PASSWORD="root" \
     -p 8080:80 \
-    dpage/pgadmin4```
+    dpage/pgadmin4
 
 Now, we need to link these containers, because pgadmin container doesn't have postgres, so localhost connection fails on trying to create a server at localhost:8080. So, we create a network-- with both these containers. 
 
 Create a network : docker create network <network_name>
 
-```*docker create network pg_network*```
+*docker create network pg_network*
 
 Once you've created a network, run the docker containers in that network. 
 
-```docker run -it \
+docker run -it \
   -e POSTGRES_USER="root" \
   -e POSTGRES_PASSWORD="root" \
   -e POSTGRES_DB="ny_taxi" \
@@ -152,15 +152,15 @@ Once you've created a network, run the docker containers in that network.
   -p 5433:5432 \
   --network=pg-network \
   --name pg-database \
-  postgres:13```
+  postgres:13
 
-```docker run -it \
+docker run -it \
     -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
     -e PGADMIN_DEFAULT_PASSWORD="root" \
     -p 8080:80 \
     --network=pg-network \
     --name pg-admin \
-    dpage/pgadmin4```
+    dpage/pgadmin4
 
 Note: the --name flag is important when running postgres container after specifying the network because it's how pgAdmin recogizes postgres. 
 
