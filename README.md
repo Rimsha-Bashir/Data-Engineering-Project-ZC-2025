@@ -1,6 +1,6 @@
 # DATA ENGINEERING ZOOMCAMP-2025
 
-[Data Engineering Zoomcamp - 2025](https://github.com/DataTalksClub/data-engineering-zoomcamp) is a free 9-week course that teaches the fundamentals of building data pipelines, offered by DataTalksClub. 
+[Data Engineering Zoomcamp - 2025](https://github.com/DataTalksClub/data-engineering-zoomcamp) is a 9-week course that teaches the fundamentals of building data pipelines, offered by DataTalksClub. 
 
 I got hands-on experience with tools like Docker, Terraform, Kestra, dbt, Spark, and Kafka, learning about everything from setting up infrastructure to working with streaming data.
 

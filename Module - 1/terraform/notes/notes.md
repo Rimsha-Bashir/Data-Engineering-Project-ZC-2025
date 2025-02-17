@@ -61,3 +61,45 @@ Provider in Terraform is a plugin that enables interaction with an API. This inc
     # Refresh token/session, and verify authentication
     gcloud auth application-default login
 ```
+
+7. Run terraform init on gitbash
+    ![Terraform init on GitBash](terraform-init.png)
+
+8. Add the resource you want in the `main.tf` file, here we'll add google storage bucket and specify settings like lifecycle. 
+    The demo-bucket is a variable to help us recognize what bucket we want to use. It doesn't have to be globally unique, but `name` does have to be (in GCP). 
+    > Note: Lifecycle rule > action > type = "AbortIncompleteMultipartUpload" : This feature allows you to break down a large datafile in chunks and upload them to the bucker parallely. 
+    Age is in days.  
+    I saved `credentials` inside the `main.tf` block. 
+
+9. Run `terraform plan` to display configurations and how they will be changed. 
+
+10. Run `terraform apply` to run the changes/settings. This creates the `terraform.tfstate` file. 
+
+11. Go to [console.cloud.google.com/](https://console.cloud.google.com/) and look for cloud storage, you'll see the storage bucket pop up there. 
+
+12. If you run `terraform destroy`, your resources will be destroyed/deallocated. The state file will have no resources defined. The backup will be saved in an auto generated file `terraform.tfstate.backup`. 
+
+>**Before uploading to GitHub**
+>**Add a .gitignore file for the terraform config, e.g. this one from [here](https://github.com/github/gitignore/blob/main/Terraform.gitignore).**
+
+### DE Zoomcamp 1.3.3 - Terraform Variables
+
+1. Adding a new resource for BQ - [google_bigquery_dataset](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_dataset). Look at the config parameters and define the ones "required".  
+>resource "google_bigquery_dataset" "demo_dataset" {
+> dataset_id = "demo_dataset"
+>}
+
+3. Run `terraform plan` and `terraform apply`. 
+
+What are Terraform Variables and why do we need them? 
+Terraform variables are placeholders for values that you can use to make your configurations more dynamic and reusable.
+- Clean code
+- Reusability/Reproducability. 
+
+``` Format : 
+variable "variable_name" {
+  description = "general description of the variable"
+  default     = "variable_value"
+}
+```
+You can also apply it with the command - `terraform apply -var variable_name="value"`
