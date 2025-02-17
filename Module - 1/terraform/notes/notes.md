@@ -36,3 +36,28 @@ Provider in Terraform is a plugin that enables interaction with an API. This inc
 * `terraform destroy`: destroy all resources Terraform created
 
 ### DE Zoomcamp 1.3.2 - Terraform Basics
+
+1. Set up Google cloud account. 
+
+2. Go to the IAM and Admin panel, and create a service account. The new service account *terraform-runner* should get the following permissions: "Storage Admin", "BiqQuery Admin" and "Compute Admin". Add a key in the service account and download it a JSON file.
+**Remember to include it in the .gitignore file** 
+
+3. Install the HashiCorp Terraform extension in vscode.  
+
+4. Create a `main.tf` file with a GCP provider configuration. Find the GCP provider [here](https://registry.terraform.io/providers/hashicorp/google/latest/docs). Use the default configuration found in the "Use Provider" panel, then copy the example code into the main.tf file.
+    > provider "google" {
+        project     = "my-project-id"
+        region      = "us-central1"
+    }
+    > Copied config options from [here](https://registry.terraform.io/providers/hashicorp/google/latest/docs).
+5. Use `terraform fmt` to format the code. Fetch the project id from the GCP console and replace the my-project-id placeholder in the main.tf file. Optionally search for the region closest to your location.
+
+6. Download Google SDK for local setup
+```
+    Set environment variable to point to your downloaded GCP keys:
+    export GOOGLE_CREDENTIALS="<path/to/your/service-account-authkeys>.json"
+    echo $GOOGLE_CREDENTIALS
+
+    # Refresh token/session, and verify authentication
+    gcloud auth application-default login
+```
