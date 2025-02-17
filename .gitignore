@@ -50,3 +50,4 @@ terraform.rc
 # Ignore img files 
 
 *.png
+*.jpg
