@@ -9,12 +9,12 @@ variable "location" {
 }
 variable "region" {
   description = "Google Cloud provider region"
-  default     = "europe-west10"
+  default     = "europe-west1"
 
 }
 variable "bq_dataset" {
   description = "BigQuery Dataset"
-  default     = "demo_databse"
+  default     = "demo_database"
 
 }
 variable "gcs_storage_class" {
