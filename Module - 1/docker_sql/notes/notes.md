@@ -222,6 +222,8 @@ Register a server
         --table_name=yellow_taxi_data \
         --url=${URL}
 
+*Why is port=5432? Because this image is running the ingest_data.py inside the network 'pg-network' which means it's looking for 5432 and not 5433 The py file is meant to load data into the postgres running inside the network (i.e in port 5432). If I `run pgcli -h localhost -p 5433 -d ny_taxi`, I'll find that the data is present on running sql queries. The pgcli command connects to 5433 in localhost which is connected to 5432 in the pg-netowrk*
+
 I faced some error on running the ny_data_ingest:v0 image because the ingest_data.py script was throwing an error for a line that was not in the file. (?!) 
 
 Steps undertaken:
