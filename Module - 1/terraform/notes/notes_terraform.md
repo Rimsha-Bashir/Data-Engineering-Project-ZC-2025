@@ -64,6 +64,7 @@ Provider in Terraform is a plugin that enables interaction with an API. This inc
 ```
 
 7. Run terraform init on gitbash
+
     ![Terraform init on GitBash](terraform-init.png)
 
 8. Add the resource you want in the `main.tf` file, here we'll add google storage bucket and specify settings like lifecycle. 

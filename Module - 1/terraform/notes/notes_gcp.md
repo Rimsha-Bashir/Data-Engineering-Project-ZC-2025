@@ -106,6 +106,7 @@
 
 You can use `logout` to logout/disconnect from the VM session (that you logged in to by using ssh de-zoomcamp). Then login again. 
 
+
 #### Installing Anaconda in the VM
     - After you run `ssh de-zoomcamp`, follow:
         - Go to [Anaconda Download](https://www.anaconda.com/download/success) and download the Linux distribution for the Ubuntu VM. 
@@ -232,8 +233,3 @@ Before installing or upgrading any software on your system, it's a good practice
 - `ssh -i ~/.ssh/<filename> <username>@<external-ip>` : Manually entering config parameters
 Both methods will connect you to the same remote machine, assuming you have the same information configured correctly in the SSH config file.
 - `sudo shutdown now` to close ssh connections. It is equivalent to stopping the VM instance from the google console.
-
-
-
-
-### DE Zoomcamp 1.4.2 - Using Github Codespaces for the Course (by Luis Oliveira)
