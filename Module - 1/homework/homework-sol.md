@@ -99,26 +99,28 @@ During the period of October 1st 2019 (inclusive) and November 1st 2019 (exclusi
     Consider only lpep_pickup_datetime when filtering by date.
 
     SOLUTION:
-    ```
-    select z."Zone", round(CAST(sum(g."total_amount") AS numeric),2) as "total_cost"
-        from green_taxi_data as g 
-        inner join zones as z
-        on z."LocationID" = g."PULocationID"
-        where g."lpep_pickup_datetime"::date='2019-10-18'
-        group by 1
-        order by 2 desc 
-        limit 3;
-    ```
+        ```
+        select z."Zone", round(CAST(sum(g."total_amount") AS numeric),2) as "total_cost"
+            from green_taxi_data as g 
+            inner join zones as z
+            on z."LocationID" = g."PULocationID"
+            where g."lpep_pickup_datetime"::date='2019-10-18'
+            group by 1
+            order by 2 desc 
+            limit 3;
+        ```
     *Remember to cast total_amount to numeric, as round() exects a numeric value, not double precision*
 
     Output:
-    **"Zone"	              "total_cost"**
-    **"East Harlem North"	    18686.68**
-    **"East Harlem South"	    16797.26**
-    **"Morningside Heights"	    13029.79**
+    ```
+    "Zone"	              "total_cost"
+    "East Harlem North"	    18686.68
+    "East Harlem South"	    16797.26
+    "Morningside Heights"	13029.79
+    ```
 
 
-6. Question 6. Largest tip
+6. Largest tip
     For the passengers picked up in October 2019 in the zone named "East Harlem North" which was the drop off zone that had the largest tip?
 
     Note: it's tip , not trip
@@ -140,7 +142,9 @@ During the period of October 1st 2019 (inclusive) and November 1st 2019 (exclusi
         limit 1;  
     ```
     Output:
+
     **`"Zone"	        "max"`**
+
     **`"JFK Airport"	87.3`**
 
 
