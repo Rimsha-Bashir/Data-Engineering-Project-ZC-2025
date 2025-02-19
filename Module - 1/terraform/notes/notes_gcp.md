@@ -225,7 +225,7 @@ Before installing or upgrading any software on your system, it's a good practice
 
 #### Things to keep in mind
 
-1. Everytime you shit down the VM and restart it, the external IP address changes, and so, you'll have to update the config file in the .ssh foler accordingly. 
+1. Everytime you shut down the VM and restart it, the external IP address changes, and so, you'll have to update the config file in the .ssh foler accordingly. 
 
 #### Commonly used commands 
 
