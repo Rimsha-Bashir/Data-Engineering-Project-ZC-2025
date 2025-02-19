@@ -233,3 +233,38 @@ Before installing or upgrading any software on your system, it's a good practice
 - `ssh -i ~/.ssh/<filename> <username>@<external-ip>` : Manually entering config parameters
 Both methods will connect you to the same remote machine, assuming you have the same information configured correctly in the SSH config file.
 - `sudo shutdown now` to close ssh connections. It is equivalent to stopping the VM instance from the google console.
+
+
+### DE Zoomcamp 1.6.1 - Docker Module Walk-Through on WSL
+
+- Similar to what we do in Gitbash. 
+- If you get an error on running 
+  ```docker run -it \
+        -e POSTGRES_USER="root" \
+        -e POSTGRES_PASSWORD="root" \
+        -e POSTGRES_DB="ny_taxi" \
+        -v "C:\Users\rimsh\Desktop\rimsha\github\DECamp-2025\Module - 1\docker_sql\ny_taxi_data:/var/lib/postgresql/data" \
+        -p 5433:5432 \
+        --network=pg-network \
+        --name pg-database \
+        postgres:13
+    ```
+    - Run `docker volume create --name dtc_postgres_volume_local -d local` 
+      (It'll s how up in docker desktop > volumes)
+      And then, 
+      ```
+        docker run -it \
+            -e POSTGRES_USER="root" \
+            -e POSTGRES_PASSWORD="root" \
+            -e POSTGRES_DB="ny_taxi" \
+            -v dtc_postgres_volume_local:/var/lib/postgresql/data" \
+            -p 5433:5432 \
+            --network=pg-network \
+            --name pg-database \
+            postgres:13```
+    - Accordingly befor eyou run docker-compose, add volume tag data in the yaml file as well. (Check [here](https://www.youtube.com/watch?v=Mv4zFm2AwzQ&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=17))
+     
+
+    > Note: Volumes are persistent data stores for containers, created and managed by Docker. You can create a volume explicitly using the docker volume create command, or Docker can create a volume during container or service creation.
+
+    - Run `wsl` on cmd or powershell, or your PS terminal here, and you can run the commands from all lectures (with some tweaking here and there- check YT vid) on vscode. 

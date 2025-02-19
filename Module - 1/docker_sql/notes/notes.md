@@ -138,12 +138,12 @@ docker run -it \
 
 Now, we need to link these containers, because pgadmin container doesn't have postgres, so localhost connection fails on trying to create a server at localhost:8080. So, we create a network-- with both these containers. 
 
-Create a network : docker create network <network_name>
+Create a network : `docker create network <network_name>`
 
-*docker create network pg_network*
+`docker create network pg_network`
 
 Once you've created a network, run the docker containers in that network. 
-
+```
 docker run -it \
   -e POSTGRES_USER="root" \
   -e POSTGRES_PASSWORD="root" \
@@ -161,7 +161,7 @@ docker run -it \
     --network=pg-network \
     --name pg-admin \
     dpage/pgadmin4
-
+```
 Note: the --name flag is important when running postgres container after specifying the network because it's how pgAdmin recogizes postgres. 
 
 Go to [http://localhost:8080](http://localhost:8080/browser/)
@@ -228,7 +228,7 @@ I faced some error on running the ny_data_ingest:v0 image because the ingest_dat
 
 Steps undertaken:
 - Check for the content in the app/ingest_data.py file inside the ny_data_ingest:v0 container. 
-    1. **docker build --no-cache -t ny_ingest_data:v0 .** Build the img without cache overlays. 
+    1. **docker build --no-cache -t ny_data_ingest:v0 .** Build the img without cache overlays. 
     1. When running the docker run command, don't supply the parameters/args-- You can bypass this by running the below  
         **docker run --rm -it --entrypoint bash ny_ingest_data:v0**
 
