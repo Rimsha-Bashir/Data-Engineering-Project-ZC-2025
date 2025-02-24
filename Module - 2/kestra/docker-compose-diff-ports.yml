@@ -18,6 +18,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 10
+    ports:
+      - "5432:5432"
 
   kestra:
     image: kestra/kestra:latest
@@ -40,7 +42,7 @@ services:
           server:
             basicAuth:
               enabled: false
-              username: "admin@kestra.io" # it must be a valid email address
+              username: "admin@kestra.io" 
               password: kestra
           repository:
             type: postgres
@@ -59,4 +61,6 @@ services:
       - "8081:8081"
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
