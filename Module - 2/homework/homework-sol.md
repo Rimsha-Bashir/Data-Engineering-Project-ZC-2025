@@ -1,9 +1,13 @@
 1. Within the execution for Yellow Taxi data for the year 2020 and month 12: what is the uncompressed file size (i.e. the output file yellow_tripdata_2020-12.csv of the extract task)?
 
-    - 128.3 MiB
+    - `128.3 MiB`
     - 134.5 MiB
     - 364.7 MiB
     - 692.6 MiB
+
+![Q1-sol](Q1.png)
+
+Set `disable` to `true` in the purge files task inside the Flow `06_gcp_taxi` to retain the output file when execution completes so you can check the size. 
 
 2. What is the rendered value of the variable file when the inputs taxi is set to green, year is set to 2020, and month is set to 04 during execution?
 
