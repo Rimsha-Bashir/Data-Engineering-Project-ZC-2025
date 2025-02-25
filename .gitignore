@@ -6,7 +6,7 @@ Module - 1/terraform/gcp-terraform/
 # GC service account creds
 *.json
 */keys/*
-
+/keys
 # Local .terraform directories
 *.terraform
 .terraform.*

@@ -277,6 +277,7 @@ pluginDefaults:
 
 </b>
 
+**[!USING COMBINED > DOCKER-COMPOSE AFTER THIS!]**
 
 ### DE Zoomcamp 2.2.4 - Manage Scheduling and Backfills with Postgres in Kestra
 
@@ -287,12 +288,66 @@ Now, we want to automate the process of supplying inputs by creating triggers to
 
 ### DE Zoomcamp 2.2.5 - Orchestrate dbt Models with Postgres in Kestra
 
+![dbt flow arch](dbt-workflow.png)
 
 
+**More on this in Module 4**
+
+### DE Zoomcamp 2.2.6 - ETL Pipelines in Kestra: Google Cloud Platform
+
+1. Create a new service account in GCP, call it `zoomcamp`. 
+    Config details:
+    - Allow the SA below accesses:
+        - Cloud Storage Admin
+        - BigQuery Admin 
+    - User access:
+        - Admin email: bashirrimsha22@gmail.com (myemailaddress)
+
+2. Once created, I saved the `json` file in this repo and made sure to add it to .gitignore. 
+
+3. Copy and paste it under `zoomcamp` namespace in kestra, as a KV pair. Key Value - `GCP_CREDS`.
+
+4. Run the flow `04_gcp_kv.yaml`, to set up other key-value pairs in the `zoomcamp` namespace after setting each key with appropriate values.
+
+5. Run the flow `05_gcp_setup` to create `gcp_bucket` and `gcp_bigquery`.  
+
+![GCP BQ](gcp-bq.png)
 
 
+![GCP Bucket](gcp-bucket.png)
+
+In Kestra, 
+![05_flow execution](kestra-exec.png)
 
 
+Now, you run the `06_gcp_taxi.yaml` flow and your taxi data, as per inputs provided get added to the `gcp_dataset > zoomcamp` BigQuery and 
+`rimsha-kestra` gcp storage bucket.
+
+![bigquery taxi data](bq-taxi.png)
+
+and 
+
+![bucket taxi data](bucket-taxi.png)
+
+Note that GC storage, or data lake is typically for storing unstructured data `objects` like images, videos, pdf etc, but you can also store csv files and then put it in GCP BigQuery which is a data warehouse (used for storing structured data).
+
+
+### DE Zoomcamp 2.2.7 - Manage Schedules and Backfills with BigQuery in Kestra
+
+- In the Flow - `06_gcp_taxi_scheduled.yaml`, we create a trigger to schedule the upload taxi data into gcs and bigquery with only taxi type (yellow/green), and `start and end` date (implementing backfills).
+
+### DE Zoomcamp 2.2.8 - Orchestrate dbt Models with BigQuery in Kestra
+
+Now that we have raw data ingested into BigQuery, we can use dbt to transform that data.
+
+**More on this in Module 4**
+
+### DE Zoomcamp 2.2.9 - Deploy Workflows to the Cloud with Git in Kestra
+
+To install Kestra on Google Cloud in Production, and automatically sync and deploy your workflows.
+Check out all 4 vids [here](https://www.youtube.com/watch?v=l-wC71tI3co).
+
+**More on this in Module 4**
 
 ### **How to install and run kestra in GCP?**
 
@@ -373,6 +428,123 @@ Now, we want to automate the process of supplying inputs by creating triggers to
 
     On changing port mount in the `postgres-zoomcamp` service in `combined>docker-compose` to `5433`, it worked. I'm guessing it had to do with the fact that the local instance of Postgres running on the host computer is at `5432` 
 
+
+3. Error on running `06_gcp_taxi.yaml` in kestra on trying to supply the input - **yellow taxi data for 01/2019**
+
+   ![gcp_taxi_extract_task](extract.png)
+
+   Steps to troubleshoot: 
+
+    - Check `combined > docker-compose.yml` to see where the data is getting saved. 
+      ```yaml
+        volumes:
+        - kestra-data:/app/storage
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /tmp/kestra-wd:/tmp/kestra-wd 
+      ```
+
+
+        |                  Mapping                  	|     Host Location     	|   Inside Container   	|            Purpose              	|   	
+        |:-----------------------------------------:	|:---------------------:	|:--------------------:	|:----------------------------------:	|
+        | kestra-data:/app/storage                  	| Docker-managed volume 	| /app/storage         	| Persistent storage for Kestra         	|   	
+        | /var/run/docker.sock:/var/run/docker.sock 	| Docker socket file    	| /var/run/docker.sock 	| Enables Kestra to orchestrate or manage other Docker containers 	|   	
+        | /tmp/kestra-wd:/tmp/kestra-wd             	| /tmp/kestra-wd        	| /tmp/kestra-wd       	| Temporary workspace for task execution (e.g., file downloads, data processing) |   	
+
+
+    - From the above `volume` definition, we can conclude that the downloaded file will be stored in `/tmp/kestra-wd`. To see what the size of the folder is, execute the below commands. 
+      - Run `wsl` on PowerShell. 
+      - Run `df -h`
+
+      ```bash
+        root@f2772a553db7:/app# df -h
+        Filesystem      Size  Used Avail Use% Mounted on
+        overlay        1007G  7.9G  948G   1% /
+        tmpfs            64M     0   64M   0% /dev
+        tmpfs           1.9G     0  1.9G   0% /sys/fs/cgroup
+        shm              64M     0   64M   0% /dev/shm
+        tmpfs           382M     0  382M   0% /tmp/kestra-wd
+        /dev/sdd       1007G  7.9G  948G   1% /app/storage
+        none            1.9G  600K  1.9G   1% /run/docker.sock
+        tmpfs           1.9G     0  1.9G   0% /proc/acpi
+        tmpfs           1.9G     0  1.9G   0% /sys/firmware 
+      ```
+      - You can see the mounts+files for docker in the File system (managed by WSL). Note that `/tmp/kestra-wd` is of type `tmpfs` -  `temporary filesystem`. It seems to have only 385MB of space. 
+        Possible solutions are to increase the `tmpfs` space, or mount the `/tmp/kestra-wd` on another loction.
+
+      -  If you run the Flow `06_gcp_taxi.yaml`, you can visibly check how the space is used. To do this, follow the steps below:
+
+          - Run `docker ps` and get the kestra container id. 
+          - Run `docker exec -it <kestra_container_id> /bin/bash`
+          - As the Flow is executing, rerun the command `df -h` in bash inside the kestra container, and you can see it fill up. 
+              
+              ![space full](wsl-run.png)
+      - Solution:
+        Increase tmpfs size to 1-2GB in `combined > docker-compose.yaml`. 
+        Add this to the kestra service 
+        ```yaml
+        tmpfs:
+          - /tmp/kestra-wd:size=1g
+        ``` 
+
+*Somewhere between this, I started using combined>docker-compose instead of kestra+postgres docker-compose
+
 ### Things to keep in mind:
 
 1. When you have a dynamic value you want to assign use in another expression, you have to use render() because only then supplied the input can be read by the outer query in the correct format.
+
+2. Docker volumes and networks can sometime take up too much space and hinder your workflows. 
+
+    - to remove unused Docker objects - `docker system prune -a`
+    - to clean up unused volumes - `docker volume prune`
+
+3. How to check where your container files are mapped?
+  ```
+  - docker exec -it <kestra_container_id> bash
+    df -h | grep tmp
+    ls -ld /tmp/kestra-wd
+
+  ```
+
+4. Docker's managed storage is `WSL2`, and so the files are all managed by wsl. 
+  Example: 
+
+  ```yaml
+  volumes:
+      - kestra-data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+  ```
+
+  **`kestra-data:/app/storage → Named Docker Volume`**
+  
+  1. Host Machine:
+    ```
+      - Docker creates and manages a named volume called kestra-data.
+      - This volume is stored in Docker's managed storage (inside WSL 2 or /var/lib/docker/volumes/).
+    ```
+
+  2. Inside Container (kestra service):
+    ```
+      - /app/storage is mounted from kestra-data. 
+      - Any files Kestra writes to /app/storage are actually stored in kestra-data and persist even if the container stops or restarts.
+    ```
+
+  **`/tmp/kestra-wd:/tmp/kestra-wd → Bind Mount for Temp Work Directory`**
+
+  1. Host (Your Machine):
+
+      `- /tmp/kestra-wd is a temporary directory where Kestra writes temporary workflow data.`
+    
+  2. Inside Container (kestra service):
+
+    ```
+      - /tmp/kestra-wd maps to the same directory as on the host.
+      - Any files written to /tmp/kestra-wd inside the container are visible on the host.
+      - ✅ Use Case: Temporary workspace for task execution (e.g., file downloads, data processing).
+      - Run command - `wsl -d docker-desktop df -h` to find out `FS, Size, Used, Available, Use%, Mounted on`
+    ```
+  
+  ![To inspect docker disk space](space-ipct.png)
+
+
+5. **Note that : When using WSL 2 (Windows Subsystem for Linux version 2), Docker runs inside a Linux environment within WSL 2. While Docker still manages volumes, the file system is part of the virtualized environment inside WSL, rather than directly on your Windows filesystem.**

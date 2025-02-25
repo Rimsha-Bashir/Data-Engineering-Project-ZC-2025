@@ -32,9 +32,7 @@ services:
     volumes:
       - kestra-data:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
-      #- /tmp/kestra-wd:/tmp/kestra-wd
-    tmpfs:
-      - /tmp/kestra-wd:size=1g
+      - /tmp/kestra-wd:/tmp/kestra-wd
     environment:
       KESTRA_CONFIGURATION: |
         datasources:
