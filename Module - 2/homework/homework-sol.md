@@ -19,6 +19,14 @@
     - 18,324,219
     - 29,430,127
 
+```sql
+SELECT count(*) FROM `coral-velocity-451115-d9.zoomcamp.yellow_tripdata` where filename like "%2020%";
+```
+
+```sql 
+SELECT count(*) FROM `coral-velocity-451115-d9.zoomcamp.yellow_tripdata` where EXTRACT(YEAR from tpep_pickup_datetime)=2020 and EXTRACT(YEAR from tpep_dropoff_datetime)=2020; 
+```
+
 4. How many rows are there for the Green Taxi data for all CSV files in the year 2020?
 
     - 5,327,301
@@ -26,12 +34,21 @@
     - `1,734,051`
     - 1,342,034
 
+```sql
+SELECT count(*) FROM `coral-velocity-451115-d9.zoomcamp.green_tripdata` where filename like "%2020%";
+```
+
 5. How many rows are there for the Yellow Taxi data for the March 2021 CSV file?
 
     - 1,428,092
     - 706,911
-    - 1,925,152
+    - `1,925,152`
     - 2,561,031
+
+```sql 
+SELECT count(*) FROM `coral-velocity-451115-d9.zoomcamp.yellow_tripdata` where filename like "%2021%"
+and EXTRACT(MONTH from tpep_pickup_datetime)=3;
+```
 
 6. How would you configure the timezone to New York in a Schedule trigger?
 
