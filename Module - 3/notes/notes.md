@@ -7,8 +7,14 @@
     - [BigQuery](#bigquery-a-data-warehouse-solution)
     - [BigQuery Pricing](#bigquery-pricing)
     - [External Tables](#what-is-an-external-table)
-
-
+    - [Partitions in BigQuery](#partitions-in-bigquery)
+    - [Clustering in BigQuery](#clustering-in-bigquery)
+- [Partiioning v/s Clustering](#de-zoomcamp-312---partioning-and-clustering)
+- [BigQuery best practices](#de-zoomcamp-321---bigquery-best-practices)
+- [Internals of BQ](#de-zoomcamp-322---internals-of-big-query)
+    - [BigQuery Architecture](#bigquery-architecture)
+- [Machine Learning using BigQuery](#de-zoomcamp-331---bigquery-machine-learning)
+- [ML model deployment](#de-zoomcamp-332---bigquery-machine-learning-deployment)
 
 ## DE Zoomcamp 3.1.1 - Data Warehouse and BigQuery
 
@@ -125,7 +131,7 @@ For more info check - [Google BigQuery: External Tables Official Documentation](
 
 ### Partitions in BigQuery
 
-Partitioning is a technique that divides a large table into smaller, manageable units (partitions) based on a specific columns inorder to improve query performance. There are four commonly used partitioning types in BQ:
+Partitioning is a technique that divides a large table into smaller, manageable units (partitions) based on a specific columns inorder to improve query performance. Each partition is created based on the partitioning key. There are four commonly used partitioning types in BQ:
 
 | Partitioning Type              | How It Works                                                                                                     | Example Use Case                                                 |
 |--------------------------------|------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|
@@ -203,19 +209,19 @@ Non-Partition Impact (Q5)
 
 ### Clustering in BigQuery 
 
-Clustering organizes data *within* partitions based on one or more columns for faster querying. It can improve performance and lower costs on big datasets for certain types of queries, such as queries that use filter clauses and queries that aggregate data.
+Clustering *organizes* data based on one or more columns by sorting/grouping it in a way that stores alike column values together. It can improve performance and lower costs on big datasets for certain types of queries, such as queries that use filter clauses and queries that aggregate data.
 
 > Note: tables with less than 1GB don't show significant improvement with partitioning and clustering; doing so in a small table could even > lead to increased cost due to the additional metadata reads and maintenance needed for these features.
 
 Example:
 ```sql
 -- Creating a partition and cluster table
+-- DDL to define a cluster 
 CREATE OR REPLACE TABLE taxi-rides-ny.nytaxi.yellow_tripdata_partitioned_clustered
 PARTITION BY DATE(tpep_pickup_datetime)
 CLUSTER BY VendorID AS
 SELECT * FROM taxi-rides-ny.nytaxi.external_yellow_tripdata;
 ```
-Here, the date partitions are further divided/broken down into clusters by VendorID. 
 
 <details>
 <summary>BQ Clusters</summary>
@@ -230,5 +236,158 @@ Clustered table: Query performance and data processed
 
 </details>
 
+Here, the Cluster groups together the VendorID's such that when specified in a where clause, BQ only has to go looking in that block of rows.  
 
 ## DE Zoomcamp 3.1.2 - Partioning and Clustering
+
+As mentioned before, you may combine both partitioning and clustering in a table, but there are important differences between both techniques that you need to be aware of in order to decide what to use for your specific scenario:
+
+|                                                          Clustering                                                         |                                          Partitioning                                          |
+|:---------------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------:|
+| Cost benefit unknown. BQ cannot estimate the reduction in cost before running a query.                                      | Cost known upfront. BQ can estimate the amount of data to be processed before running a query. |
+| High granularity. Multiple criteria can be used to sort the table.                                                          | Low granularity. Only a single column can be used to partition the table.                      |
+| Clusters are "fixed in place".                                                                                              | Partitions can be added, deleted, modified or even moved between storage options.              |
+| Benefits from queries that commonly use filters or aggregation against multiple particular columns.                         | Benefits when you filter or aggregate on a single column.                                      |
+| Unlimited amount of clusters; useful when the cardinality of the number of values in a column or group of columns is large. | Limited to 4000 partitions; cannot be used in columns with larger cardinality.                 |
+
+
+You may choose clustering over partitioning when partitioning results in a small amount of data per partition, when partitioning would result in over 4000 partitions or if your mutation operations modify the majority of partitions in the table frequently (for example, writing to the table every few minutes and writing to most of the partitions each time rather than just a handful).
+
+BigQuery has automatic reclustering: when new data is written to a table, it can be written to blocks that contain key ranges that overlap with the key ranges in previously written blocks, which weaken the sort property of the table. BQ will perform automatic reclustering in the background to restore the sort properties of the table.
+
+For partitioned tables, clustering is maintaned for data within the scope of each partition.
+
+
+## DE Zoomcamp 3.2.1 - BigQuery Best Practices
+
+Cost Reduction: 
+
+- Avoid `Select *` and specify columns instead. 
+- Price your queries before running. 
+- Use clustering or partitioning.
+- Use streaming inserts with caution. 
+- Materialize queries in storage. 
+
+Query Performance:
+
+- Filter on partitioned columns.
+- Denormalize data.
+- Use [nested or repeated columns](https://cloud.google.com/blog/topics/developers-practitioners/bigquery-explained-working-joins-nested-repeated-data).
+
+    Example: You can use nested fields to store related data, like multiple items in an order, within a single column rather than having separate rows for each item.
+    ```sql
+    CREATE TABLE `project.dataset.orders` (
+    order_id STRING,
+    customer_name STRING,
+    items ARRAY<STRUCT<item_name STRING, quantity INT64, price FLOAT64>>
+    );
+    
+    INSERT INTO `project.dataset.orders`
+    VALUES ('order123', 'Alice', [STRUCT('item1', 2, 20.0), STRUCT('item2', 1, 30.0)]);
+    ```
+    Why it helps: By using nested and repeated fields, you avoid the need for joins and can query the related data directly in a single query.
+
+- Use external data sources appropiately. Constantly reading from external sources like Cloud Storage incurs additional costs and slower performance. If you're reading a large dataset from Cloud Storage every time you run a query, consider caching or preloading the data into BigQuery if it's frequently used.
+
+- Reduce data before using a `JOIN`. 
+
+    Example: Instead of joining large tables and filtering later, apply filtering or aggregation before the join to reduce the data size.
+    ```sql
+    WITH filtered_orders AS (
+    SELECT * FROM `project.dataset.orders`
+    WHERE order_date >= '2025-01-01'
+    )
+    SELECT o.order_id, c.customer_name
+    FROM filtered_orders o
+    JOIN `project.dataset.customers` c
+    ON o.customer_id = c.customer_id;
+    ```
+    Why it helps: Filtering out unnecessary data before performing a `JOIN` reduces the number of rows that need to be processed, improving performance.
+
+- Do not treat `WITH` clauses as prepared statements/stored procedure.
+
+    Example: Avoid reusing WITH clauses like this:
+    ```sql
+    WITH temp AS (
+    SELECT * FROM `project.dataset.orders`
+    WHERE order_date >= '2025-01-01'
+    )
+    SELECT * FROM temp;
+    ```
+    Why it helps: `WITH` clauses are meant for temporary results within a query, not for repeated execution like a stored procedure. BigQuery does not cache them automatically, and repeatedly querying the same data can lead to performance overhead.
+
+- Avoid [oversharding](https://cloud.google.com/bigquery/docs/partitioned-tables#dt_partition_shard) tables.
+
+    Why it helps: Too many small partitions increase overhead when BigQuery needs to manage and scan each partition. Using reasonable partitioning strategies improves performance and reduces costs.
+
+- Avoid JavaScript user-defined functions.
+    Example: Instead of using a JavaScript UDF to process strings, use BigQuery’s built-in STRING functions.
+    ```sql
+
+    -- Avoid this JavaScript UDF:
+    CREATE FUNCTION project.dataset.uppercase(input STRING) AS
+    """
+    return input.toUpperCase();
+    """;
+
+    SELECT uppercase(name) FROM `project.dataset.users`;
+    ``` 
+    Why it helps: Native SQL functions are faster and more efficient than JavaScript UDFs. JavaScript UDFs incur additional costs and performance penalties.
+
+- Use approximate aggregation functions rather than complete ones such as HyperLogLog++.
+    Example: Instead of using COUNT(DISTINCT column) for large datasets, use the approximate version APPROX_COUNT_DISTINCT(column).
+    ```sql
+    SELECT APPROX_COUNT_DISTINCT(user_id) AS unique_users
+    FROM `project.dataset.sessions`;
+    ```
+    Why it helps: Approximate functions are faster and use fewer resources compared to exact calculations, which is especially beneficial for large datasets.
+
+- Order statements should be the last part of the query. Sorting is a computationally expensive operation. Applying `ORDER BY` at the end ensures that only the necessary data is sorted, improving performance.
+
+- [Optimize join patterns](https://cloud.google.com/bigquery/docs/best-practices-performance-compute#optimize_your_join_patterns). Join the larger table first, then the smaller table.
+
+- Place the table with the largest number of rows first, followed by the table with the fewest rows, and then place the remaining tables by decreasing size. Example: If you have orders with 100 million rows and customers with 1 million rows, place orders first in the join.Example: If you have orders with 100 million rows and customers with 1 million rows, place orders first in the join.
+
+- This is due to how BigQuery works internally: the first table will be distributed evenly and the second table will be broadcasted to all the nodes. Check the Internals section in google cloud BQ docs for more details.
+
+## DE Zoomcamp 3.2.2 - Internals of Big Query
+
+![BQ Architecture](../notes/images/bq_internal.png)
+
+### BigQuery Architecture
+
+BigQuery is built on 4 infrastructure technologies:
+
+1. **Dremel**: The compute part of BigQuery that executes SQL queries.
+   - Dremel turns SQL queries into execution trees.
+   - The leaves of these trees are called **slots** (responsible for reading data from storage and performing calculations).
+   - The branches are called **mixers** (responsible for aggregation).
+   - Dremel dynamically apportions slots to queries as needed, ensuring fairness for concurrent queries from multiple users.
+
+2. **Colossus**: Google's global storage system.
+   - BigQuery leverages a columnar storage format and compression algorithms to store data.
+   - Colossus is optimized for reading large amounts of structured data.
+   - Handles replication, recovery, and distributed management of data.
+
+3. **Jupiter**: The network connecting Dremel and Colossus.
+   - Jupiter is an in-house network technology created by Google to interconnect its data centers.
+
+4. **Borg**: The orchestration solution that handles everything.
+   - Borg is a precursor to Kubernetes and manages the deployment and operation of applications across Google's infrastructure.
+
+## DE Zoomcamp 3.3.1 - BigQuery Machine Learning 
+
+[YT LINK](https://www.youtube.com/watch?v=B-WtpB0PuG4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=31)
+
+BigQuery ML is a BQ feature which allows us to create and execute Machine Learning models using standard SQL queries, without additional knowledge of Python nor any other programming languages and without the need to export data into a different system.
+
+The pricing for BigQuery ML is slightly different and more complex than regular BigQuery. Some resources are free of charge up to a specific limit as part of the Google Cloud Free Tier. You may check the current pricing in this link.
+
+For more, watch the link above. 
+
+## DE Zoomcamp 3.3.2 - BigQuery Machine Learning Deployment
+
+[YT Link](https://www.youtube.com/watch?v=BjARzEWaznU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=32)
+
+ML models created within BQ can be exported and deployed to Docker containers running TensorFlow Serving.
+
