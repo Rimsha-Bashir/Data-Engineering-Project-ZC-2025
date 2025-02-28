@@ -49,3 +49,5 @@ terraform.rc
 
 output.csv.gz
  
+*csv.gz
+*parquet
