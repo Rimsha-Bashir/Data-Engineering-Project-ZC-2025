@@ -197,5 +197,10 @@ During the project you might already have data loaded into GCP buckets. This raw
     12. You can test the connection in `Profile > Credentials`. 
 
         ![alt text](./images/ae14.png)
+    
+    13. Now, you're set to explore the dbt cloud IDE (under `Develop`).
+
+
+
 
 
