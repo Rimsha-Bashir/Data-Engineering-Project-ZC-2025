@@ -141,3 +141,61 @@ There are two ways to use dbt, and throughout the project, you'll see videos ill
 During the project you might already have data loaded into GCP buckets. This raw data will be loaded into tables in BigQuery. dbt will be used to transform the data, and finally, dashboards will be created to present the results.
 
 ![ae6](../notes/images/ae6.jpg)
+
+### Setting up dbt with bigquery
+
+[YT Link- DE Zoomcamp 4.2.1 - Start Your dbt Project BigQuery and dbt Cloud (Alternative A)](https://www.youtube.com/watch?v=J0XCDyKiU64&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=35)
+
+1. Create a BigQuery service account
+
+    In order to connect we need the service account JSON file generated from bigquery. Open the BigQuery credential wizard to create a service account
+
+    Steps: 
+
+    [Setup vid followed](https://www.youtube.com/watch?v=_C_pYeuF6_s)
+
+    1. Create an account in dbt cloud. (free for developers)
+    2. Create a service account in your google cloud project. I'm going to use `zoomcamp` (an existig one), with BigQuery Admin rights.
+    3. Now, you need to go to `GCP Console > API's and Services > Library`, type `BigQuery API` and enable it. 
+        > Note: We need this because we're looking to establish a connection between BQ and an external entity (dbt) here.
+
+        ![ae7](../notes/images/ae7.png)
+
+    4. Create a new project in dbt. Next, click on `Add new Connection` in the connection/advanced settings.
+
+        ![alt text](./images/ae8.png)
+
+        Select `BigQuery` and set up a BQ connection 
+
+        ![alt text](./images/ae9.png)
+
+    5. Name the Connection `zoomcamp_biquery` and upload service account json file from step 2.
+
+    6. Go to `Settings > Projects > Configure Repository`
+
+        ![alt text](./images/ae10.png)
+
+    7. Choose the `Github` option and perform the consequent steps necessary to set dbt up with github. 
+        > Note: You can also choose the `git clone` methodology. 
+
+    8. You will be redirected to github. Select the repos you want to connect to dbt (you can select all repos as well).
+
+    9. Under `Settings > Projects` in dbt cloud, click on `Configure Repository` and select the repo added in step 8. 
+
+        ![alt text](./images/ae11.png)
+
+        You should then be able to see the repository.. 
+
+        ![alt text](./images/ae12.png)
+    
+    10. You can further edit project details to create subdirectory to be used in Github and modify project name as you like. 
+
+        ![alt text](./images/ae13.png)
+
+    11. Then, configure development environment and add the connection `zoomcamp_bigquery` created in step 5. 
+
+    12. You can test the connection in `Profile > Credentials`. 
+
+        ![alt text](./images/ae14.png)
+
+
