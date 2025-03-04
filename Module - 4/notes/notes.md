@@ -197,5 +197,14 @@ During the project you might already have data loaded into GCP buckets. This raw
     12. You can test the connection in `Profile > Credentials`. 
 
         ![alt text](./images/ae14.png)
+    
+    13. Now, you're set to explore the dbt cloud IDE (under `Develop`).
+
+
+To follow along with the course video, I created a `dbt_test` branch in my git repo and pulled it in dbt cloud as well. 
+
+![alt text](./images/ae15.png)
+
+Click on `Initialize dbt` to create `starter dbt models` and a host of files are created under the subdirectory mentioned in step 10 above. 
 
 
