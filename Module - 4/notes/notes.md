@@ -208,3 +208,9 @@ To follow along with the course video, I created a `dbt_test` branch in my git r
 Click on `Initialize dbt` to create `starter dbt models` and a host of files are created under the subdirectory mentioned in step 10 above. 
 
 
+
+
+
+### Start Your dbt Project: Postgres and dbt Core Locally
+
+[YT Link](https://www.youtube.com/watch?v=1HmL63e-vRs&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=36)
