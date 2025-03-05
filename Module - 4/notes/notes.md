@@ -382,4 +382,125 @@ Materialization Strategies:
 
     ![alt text](./images/ae24.jpg)
 
-    
+2. Marcos
+
+    - Macros are conditional and flow control strcutures in SQL, like `for loops` or `case/if` statements. 
+    - Use `env variables` in your project for prod deployments.
+    - Written using `jinja`, a templating language with the {{}}. 
+    - Operate on the results of one query to generate another query.
+    - Abstract snippets of SQL into reusable macros.
+
+dbt already includes a series of macros like config(), source() and ref(), but custom macros can also be defined.
+
+Unlike functions in Python, the input and output of a macro result in dynamically generated SQL code. Macros are very useful for simplifying repetitive code, adhering to the DRY (Don't Repeat Yourself) principle, and enabling dynamic code generation. For example, you can use loops within a macro to generate complex SQL constructs like case statements.
+
+Let’s create a macro called get_payment_type_description. It will take a parameter, such as payment_type, and generate a SQL case statement. The syntax for defining macros is similar to Python functions:
+
+- Use macro to define the macro.
+- Provide the macro's name.
+- Specify its parameters.
+- Include the SQL code to be dynamically generated
+
+Here’s an example of `get_payment_type_description.sql` macro:
+
+{#
+    This macro returns the description of the payment_type 
+#}
+
+{% macro get_payment_type_description(payment_type) -%}
+
+    case {{ dbt.safe_cast("payment_type", api.Column.translate_type("integer")) }}  
+        when 1 then 'Credit card'
+        when 2 then 'Cash'
+        when 3 then 'No charge'
+        when 4 then 'Dispute'
+        when 5 then 'Unknown'
+        when 6 then 'Voided trip'
+        else 'EMPTY'
+    end
+
+{%- endmacro %}
+
+This macro is designed to return the description of a given payment_type in a SQL context. It uses a CASE statement to map integer values of payment_type to their corresponding descriptions.
+
+The macro uses dbt.safe_cast to ensure payment_type is safely converted to an integer (or a compatible type). This is useful for ensuring type compatibility in SQL.
+
+api.Column.translate_type("integer") helps translate the type definition for the database being used.
+
+The macro outputs the resulting SQL CASE statement, which can then be embedded in a query to dynamically resolve the description of the payment type.
+
+Example Usage:
+
+
+![alt text](./images/ae25.jpg)
+
+
+We can observe the macro in the stg_green_tripdata.sql file, line 42:
+
+{{ get_payment_type_description("payment_type") }} as payment_type_description
+The output of the macro is included in the query as a new column named payment_type_description. For instance:
+
+
+![alt text](./images/ae26.jpg)
+
+
+When compiled, DBT will replace the macro call with the actual SQL case statement. This approach saves time and effort when dealing with large-scale projects.
+
+Macros can also be reused across projects by creating packages. A DBT package is similar to a library in other programming languages. It can contain models, macros, and other reusable components. By adding a package to your project, you can leverage its functionality anywhere in your codebase.
+
+For example, if you find yourself frequently using a macro like get_payment_type_description across multiple projects, you can bundle it into a package and include it in your DBT projects using the packages.yml file.
+
+#### Developing the first staging model
+
+We will now create our first model.
+
+We will begin by creating 2 new folders under our models folder:
+
+ - `staging` will have the raw models.
+ - `core` will have the models that we will expose at the end to the BI tool, stakeholders, etc.
+
+Under the models directory, there is a folder named staging inside dbt_taxi_data which is my dbt project name. This will represent the initial layer of models responsible for cleaning the source data. 
+Inside the staging folder, there is a schema.yml file for defining the sources (two tables for green and yellow trip data):
+
+**schema.yml**
+
+```yaml
+version: 2
+
+sources:
+  - name: staging
+    database: coral-velocity-451115-d9 
+    schema: zoomcamp
+  
+    tables:
+      - name: green_tripdata
+      - name: yellow_tripdata
+
+models:
+    - name: stg_green_tripdata
+    ...  
+    - name: stg_yellow_tripdata
+    ...
+```
+where `database` or `dataset` (as it's referred to in BQ), you'll find the yellow and green trip data and the `schema` is the folder under it containing the repective tables.  
+
+In this file, we'll define the sources and we'll define the database and schema where the data resides. Next, we'll define the tables we want to use, such as green_tripdata and yellow_tripdata. Once defined, these sources can be referenced in our models. For example, we'll start by working with the green_tripdata.
+
+One advantage of using DBT's approach is that it adheres to the DRY (Don't Repeat Yourself) principle. If we change the schema or table name in the YAML file, all dependent models will automatically update without requiring code changes in multiple places.
+
+
+**Model 1: stg_green_tripdata.sql**
+
+```sql
+-- stg_green_tripdata.sql
+
+{{ config(materialized='view') }}
+
+select * from {{ source('staging', 'green_tripdata') }}
+limit 100
+```
+This query will create a view in the staging dataset/schema in our database.
+We make use of the source() function to access the green taxi data table, which is defined inside the schema.yml file.
+The advantage of having the properties in a separate file is that we can easily modify the schema.yml file to change the database details and write to different databases without having to modify our sgt_green_tripdata.sql file.
+
+You may know run the model with the dbt run command, either locally or from dbt Cloud.
