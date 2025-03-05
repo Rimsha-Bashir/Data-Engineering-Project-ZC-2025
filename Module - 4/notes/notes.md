@@ -247,8 +247,7 @@ We initially have tables that already exist outside our DBT project. These conta
 
 DBT models are SQL scripts. We'll always work with files named after the `model`, saved as `.sql`. Inside these files, we write SQL statements, primarily SELECT statements, because DBT handles the DDL (Data Definition Language) and DML (Data Manipulation Language) for us.
 
-
-
+![alt text](./images/ae18.jpg)
 
 1. `config(materialized = 'table')` indicates that the output of the model file should be materialized as a `table` in the database. It can be saved in different ways, see `materialization strategies` in the image above. When you run the command `dbt run`, it compiles all the SQL files in your project.
 
@@ -402,12 +401,14 @@ Let’s create a macro called get_payment_type_description. It will take a param
 - Include the SQL code to be dynamically generated
 Macros are defined in separate .sql files which are typically stored in a macros directory.
 
-<details><summary>Jinja Delims
+<details>
+<summary>Jinja Delims</summary>
+
 There are 3 kinds of Jinja delimiters:
 
-{% ... %} for statements (control blocks, macro definitions)
-{{ ... }} for expressions (literals, math, comparisons, logic, macro calls...)
-{# ... #} for comments.
+1. {% ... %} for statements (control blocks, macro definitions)
+2. {{ ... }} for expressions (literals, math, comparisons, logic, macro calls...)
+3. {# ... #} for comments.
 
 </details>
 
@@ -486,7 +487,7 @@ When you add a package to your project, the package's models and macros become p
         cast(vendorid as integer) as vendorid,
         -- ...
     ```
-    The `surrogate_key()` macro generates a hash of the `vendor_id` and `pickup_datetime` fields to create a unique identifier for each row. A good practice is to include this surrogate key at the beginning of your table, as it helps define the granularity of the data.
+    The `surrogate_key()` macro generates a hash of the `vendor_id` and `lpep_pickup_datetime` fields to create a unique identifier for each row (as one vendor can only pickup one customer at the pickup time specified). A good practice is to include this surrogate key at the beginning of your table, as it helps define the granularity of the data.
 
 
 #### Developing the first staging model
