@@ -214,3 +214,172 @@ Click on `Initialize dbt` to create `starter dbt models` and a host of files are
 ### Start Your dbt Project: Postgres and dbt Core Locally
 
 [YT Link](https://www.youtube.com/watch?v=1HmL63e-vRs&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=36)
+
+Install dbt Core locally and note that in this case, you define the `profiles.yml` file to initialized dbt. In the `profiles.yml` file you'll define the connection to the database you're using, which in this case, will be `Postgres`. The file will look something like this:
+![alt text](./images/ae16.png)
+
+*You have to create the schema/dataset in postgres.*
+
+Installing dbt Core locally can be done following the steps in the [official docs](https://docs.getdbt.com/docs/core/installation-overview). For more information, check out the YT link above. 
+
+
+### Development of dbt models
+
+Let's start now with the development of those DBT models. If we go back to the initial lessons, DBT sits on top of our platform, either BigQuery or Postgres.
+
+![alt text](./images/ae17.png)
+
+We already loaded the raw data as the trips data. Now we're going to work on development, testing, and documentation. We'll start with development and by the end of these lessons, we'll deploy this into production to use those transformations in our BI tools.
+
+#### Modular data modelling
+
+To get started, we're going to use a modular data modeling approach. As we discussed in earlier lessons, we'll create fact tables and dimensional tables. The structure of our DBT project will look something like this:
+
+First, we have the tables we loaded (trips data). These are our sources. (Step 1)
+
+Then, we'll start building SQL scripts called "models" in DBT to perform transformations. (Step 3)
+
+For example, we'll pick up the source data, clean it, deduplicate it, recast and rename columns, and typecast data. Afterward, we'll apply business logic to create fact and dimension tables. Finally, we'll create data marts to aggregate the data for our stakeholders. (Step 2)
+
+We initially have tables that already exist outside our DBT project. These contain the data we will use, and we define them as sources. Additionally, we will use a file (e.g., taxi_zone_lookup) to create a table that will be incorporated into our transformations.
+
+#### Anatomy of a dbt model
+
+DBT models are SQL scripts. We'll always work with files named after the `model`, saved as `.sql`. Inside these files, we write SQL statements, primarily SELECT statements, because DBT handles the DDL (Data Definition Language) and DML (Data Manipulation Language) for us.
+
+
+
+
+1. `config(materialized = 'table')` indicates that the output of the model file should be materialized as a `table` in the database. It can be saved in different ways, see `materialization strategies` in the image above. When you run the command `dbt run`, it compiles all the SQL files in your project.
+
+2. After the compilation, i.e ater the modelling script runs, it's going to look like this :
+
+    ![alt text](./images/ae19.jpg)
+
+Materialization Strategies: 
+
+![alt text](./images/ae20.png)
+
+1. Ephermeral: These tables are like CTE's they only exist within other models.
+2. View: Every time you run dbt run, it creates or alters the view based on the SELECT statement in your file.
+3. Table: This materializes as a table in the physical database. Each time you run the model, DBT drops the existing table and recreates it with the CREATE TABLE AS SELECT statement, as shown earlier.
+4. Incremental: This is a more advanced materialization type. It also materializes as a table in the physical database, but instead of recreating the table entirely, it can work in two ways: Drop the table and recreate it with the SELECT statement or Insert only the new data into the table, allowing you to update the table incrementally.
+
+#### Modular Data Modeling
+
+<details>
+  <summary>DBT (Data Build Tool) Explained Simply</summary>
+
+  DBT is a tool used to transform raw data into clean, structured data inside a data warehouse like BigQuery, Snowflake, or Postgres. It lets data engineers and analysts write SQL-based transformations in an easy, scalable way.
+
+  Key Concepts in DBT:
+
+  1. SEEDS
+     - Seeds are CSV files that you upload to the DBT project.
+     - Useful for reference data like country codes, mappings, or small static datasets.
+     - Example:
+       - You have a countries.csv file:
+         country_code,country_name
+         US,United States
+         IN,India
+         UK,United Kingdom
+       - In DBT, you place it in the seeds/ folder and run `dbt seed`.
+       - DBT loads this CSV into your database as a table.
+
+  2. MODELS
+     - Models are SQL queries that transform data.
+     - They help clean, aggregate, and join raw data into meaningful tables.
+     - Types of models:
+       - Staging models (clean raw data)
+       - Intermediate models (joins & calculations)
+       - Final models (ready for reporting)
+     - Example:
+       - File: models/stg_orders.sql
+         SELECT order_id, user_id, order_date, total_price FROM raw.orders
+       - Run `dbt run`.
+       - DBT creates a table/view with cleaned order data.
+
+  3. REFS
+     - `ref()` is used to reference other models in DBT.
+     - It ensures dependencies are handled automatically.
+     - Example:
+       - File: models/orders_summary.sql
+         SELECT user_id, COUNT(order_id) AS total_orders, SUM(total_price) AS total_spent FROM {{ ref('stg_orders') }} GROUP BY user_id.
+       - Instead of raw.orders, it references the cleaned stg_orders model.
+
+  4. SOURCES
+     - Sources define raw tables in your database.
+     - Helps track where data is coming from.
+     - Example:
+       - File: models/schema.yml
+         sources:
+           - name: raw
+             description: "Raw data from the production database"
+             tables:
+               - name: orders
+                 description: "Order data before transformation"
+       - In a model, reference it like:
+         SELECT * FROM {{ source('raw', 'orders') }}.
+       - This ensures DBT knows the raw data source.
+
+  5. TESTS
+     - DBT allows data quality tests on models and sources.
+     - Helps catch issues early.
+     - Example:
+       - File: models/schema.yml
+         models:
+           - name: stg_orders
+             columns:
+               - name: order_id
+                 tests:
+                   - unique
+                   - not_null
+       - Run `dbt test`.
+       - DBT will check for duplicate or missing order IDs.
+
+  6. MACROS
+     - Macros are reusable SQL functions in DBT (like Python functions).
+     - Avoids repeating code.
+     - Example:
+       - File: macros/get_order_status.sql
+         {% macro get_order_status(price) %}
+         CASE 
+           WHEN {{ price }} > 100 THEN 'VIP'
+           ELSE 'Regular'
+         END
+         {% endmacro %}
+       - Use it in a model:
+         SELECT order_id, total_price, {{ get_order_status('total_price') }} AS order_status FROM stg_orders.
+
+
+</details>
+
+
+1. The `FROM` clause
+
+    - **Sources**: We'll be taking in data from `sources`, which is the data we've loaded into out DWH. We define these sources in a YAML file and specify where to find the source, allowing us to define the data location only once. After that, we can reference all tables within that location using the definition.
+
+        ![alt text](./images/ae21.jpg)
+
+    This approach abstracts the complexity of where the source is physically stored, as we only define it once. When referencing it in the project, we use the source() function, providing the source name and the table name. DBT then compiles this reference into the appropriate database and schema location defined in the YAML file.
+
+    - **Seeds**: The second source of data we select from is seeds. Seeds are CSV files stored within our repository. When running dbt run on a seed, DBT executes an operation similar to a `COPY INTO` command in SQL.
+
+    The advantage of using seeds in DBT is that they are version-controlled and stored in the same repository as the rest of the DBT project. This ensures:
+
+        - Consistency and centralization of all project files.
+        - Integration with version control for better collaboration.
+        - Documentation and testing capabilities for the seed data.
+        - Seeds are ideal for data that does not change frequently. For example, we can use a seed for a master data table, like   taxi_zone_lookup, which is relatively small and benefits from version control.
+
+    - **Refs**: `ref()` is used to reference other models in DBT.
+
+    This approach allows us to run the same code in any environment. For instance, when working locally, the model may go to a development schema like my_name_schema. In production, the same code will automatically point to a production schema. DBT abstracts the complexity of environment-specific configurations, enabling seamless execution across different environments.
+
+    Another benefit of using ref() is that it automatically builds dependencies between models. For example, if a new DBT model depends on the `stg_green_tripdata` model, DBT recognizes this relationship. This ensures that models are executed in the correct order during development and deployment, simplifying the process significantly.
+
+    ![alt text](./images/ae23.png)
+
+    ![alt text](./images/ae24.jpg)
+
+    
