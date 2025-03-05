@@ -355,7 +355,7 @@ Materialization Strategies:
 </details>
 
 
-1. The `FROM` clause
+1. **The `FROM` clause**
 
     - **Sources**: We'll be taking in data from `sources`, which is the data we've loaded into out DWH. We define these sources in a YAML file and specify where to find the source, allowing us to define the data location only once. After that, we can reference all tables within that location using the definition.
 
@@ -382,7 +382,7 @@ Materialization Strategies:
 
     ![alt text](./images/ae24.jpg)
 
-2. Marcos
+2. **`Marcos`**
 
     - Macros are conditional and flow control strcutures in SQL, like `for loops` or `case/if` statements. 
     - Use `env variables` in your project for prod deployments.
@@ -400,6 +400,16 @@ Let’s create a macro called get_payment_type_description. It will take a param
 - Provide the macro's name.
 - Specify its parameters.
 - Include the SQL code to be dynamically generated
+Macros are defined in separate .sql files which are typically stored in a macros directory.
+
+<details><summary>Jinja Delims
+There are 3 kinds of Jinja delimiters:
+
+{% ... %} for statements (control blocks, macro definitions)
+{{ ... }} for expressions (literals, math, comparisons, logic, macro calls...)
+{# ... #} for comments.
+
+</details>
 
 Here’s an example of `get_payment_type_description.sql` macro:
 
@@ -449,6 +459,35 @@ When compiled, DBT will replace the macro call with the actual SQL case statemen
 Macros can also be reused across projects by creating packages. A DBT package is similar to a library in other programming languages. It can contain models, macros, and other reusable components. By adding a package to your project, you can leverage its functionality anywhere in your codebase.
 
 For example, if you find yourself frequently using a macro like get_payment_type_description across multiple projects, you can bundle it into a package and include it in your DBT projects using the packages.yml file.
+
+3. **`Packages`**
+
+Macros can be exported to packages, similarly to how classes and functions can be exported to libraries in other languages. Packages contain standalone dbt projects with models and macros that tackle a specific problem area.
+
+When you add a package to your project, the package's models and macros become part of your own project. A list of useful packages can be found in the [dbt package hub](https://hub.getdbt.com/). Adding and using a package is a two step process: 
+
+1. To use a package, you must first create a `packages.yml` file in the root of your work directory. Here's an example:
+
+    ```yml
+    packages:
+    - package: dbt-labs/dbt_utils
+        version: 0.8.0
+    ``` 
+
+    After declaring your packages in the `packages.yml` file, you need to install them by running the `dbt deps` command either locally or on dbt Cloud. This will download and install the packages into your project. You can find the installed packages and their macros under the dbt_packages directory.
+
+    ![alt text](./images/ae27.png)
+
+2. You may access macros inside a package in a similar way to how Python access class methods:
+
+    ```sql
+    select
+        {{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid,
+        cast(vendorid as integer) as vendorid,
+        -- ...
+    ```
+    The `surrogate_key()` macro generates a hash of the `vendor_id` and `pickup_datetime` fields to create a unique identifier for each row. A good practice is to include this surrogate key at the beginning of your table, as it helps define the granularity of the data.
+
 
 #### Developing the first staging model
 
@@ -500,7 +539,7 @@ select * from {{ source('staging', 'green_tripdata') }}
 limit 100
 ```
 This query will create a view in the staging dataset/schema in our database.
-We make use of the source() function to access the green taxi data table, which is defined inside the schema.yml file.
+We make use of the `source()` function to access the green taxi data table, which is defined inside the schema.yml file.
 The advantage of having the properties in a separate file is that we can easily modify the schema.yml file to change the database details and write to different databases without having to modify our sgt_green_tripdata.sql file.
 
 You may know run the model with the dbt run command, either locally or from dbt Cloud.
