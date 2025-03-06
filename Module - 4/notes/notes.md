@@ -19,6 +19,13 @@
     - [Model 2 - stg_yellow_tripdata.sql](#model-1-stg_yellow_tripdatasql)
     - [Lineage View of Staging models](#lineage-view)
 - [Developing Core Models - Fact & Dimensions]
+    - [Seed: taxi_zone_lookup.csv](#seed-taxi_zone_lookupcsv)
+    - [Model 1 - dim_zones.sql](#model-1-dim_zonessql)
+    - [Model 2 - fact_trips.sql](#model-2-fact_tripssql)
+    - [Model 3 - dm_monthly_zone_revenue.sql]()
+    - [Lineage View of Core + Staging models](#lineage-view-1)
+    - [Build Results](#build-result)
+- [Testing & Documentation]()
 - [Important Notes](#important-notes)
 - [Troubleshooting](#troubleshooting-errors)
 
@@ -533,6 +540,52 @@ Run the command **dbt build --m <model.sql> --var `is_test_run: False`** and cha
 
 This method, often referred to as a "dev limit," is highly recommended for optimizing development workflows. By default, you’ll have faster and cheaper queries during development, but the limit can easily be removed when working with the full production data.
 
+6. **`Tests`**
+
+DBT tests are assumptions we make about our data. They're essentially statements that select data we don’t want to have. If the query produces results, the test fails and stops execution immediately, preventing the building of dependent models. For example, when building a project, if the query returns no results, the test passes, the data is good, and no alerts are triggered.
+
+These assumptions are primarily defined in YAML files like our schema.yml and are compiled into SQL code. DBT comes with four out-of-the-box tests:
+
+- `Unique Test` - Ensures the uniqueness of a field in the data model.
+- `Not Null Test` - Verifies that a field does not contain null values.
+- `Accepted Values Test` - Checks if a field contains only predefined valid values.
+- `Foreign Key Test` - Ensures relationships between fields in different tables are valid.
+
+Let's look into three cases here:
+
+For example, the "Accepted Values" test might ensure that a field like payment_type only contains values 1, 2, 3, 4, or 5. If it’s outside this `range of values`, the test will fail:
+
+```sql
+  - name: payment_type
+    description: A numeric code signifying how the passenger paid for the trip.
+    tests:
+      - accepted_values:
+          values: [1,2,3,4,5]
+          severity: warn
+```
+Another test ensures that pickup_location has a `valid relationship` to the ref_taxi_lookup table, verifying it corresponds to a valid taxi zone:
+
+```sql
+  - name: Pickup_locationid
+    description: locationid where the meter was engaged.
+    tests:
+      - relationships:
+          to: ref('taxi_zone_lookup')
+          field: locationid
+          severity: warn
+```
+Similarly, trip_id must be `unique` and `not null`, as it’s the primary key:
+
+```sql 
+  - name: tripid
+    description: Primary key for this table, generated with a concatenation of vendorid+pickup_datetime
+    tests:
+        - unique:
+            severity: warn
+        - not_null:
+            severity: warn
+```
+
 ### Developing staging models
 
 We will now create our first model.
@@ -656,7 +709,8 @@ Similarly, create another model [stg_yellow_tripdata.sql](../dbt_taxi_data/model
 
 Create a `Core` folder inside `models`. Here, we create fact and dim models, and also, upload/setup `taxi_zone_lookup.csv` in `seeds` as there's no source defined for this. 
 
-#### **Seed: `taxi_zone_lookup.csv`**
+#### **Seed: taxi_zone_lookup.csv**
+
 - Copy `taxi_zone_lookup.csv` into the seeds directory.
 - Run `dbt build --select taxi_zone_lookup.csv`. 
 
@@ -754,6 +808,43 @@ We do three things here:
  - Disregard the data entries where the `Borough` is `Unknown`. 
  - `Inner join` on `dim_zones` twice, once for `pickup_locationid` and one for `dropoff_locationid`.
 
+#### **Model 3: dm_monthly_zones_revenue.sql**
+
+This is a dbt model that creates a table summarizing revenue-related metrics for trips data as a table selecting data from our previous dbt model called fact_trips. It will include monthly revenue metrics per pickup zone and service type, various fare components, trip counts, and averages, allowing us to analyse revenue trends, performance and other trip details. 
+
+```sql 
+{{ config(materialized='table') }}
+
+with trips_data as (
+    select * from {{ ref('fact_trips') }}
+)
+    select 
+    -- Reveneue grouping 
+    pickup_zone as revenue_zone,
+    {{ dbt.date_trunc("month", "pickup_datetime") }} as revenue_month, 
+
+    service_type, 
+
+    -- Revenue calculation 
+    sum(fare_amount) as revenue_monthly_fare,
+    sum(extra) as revenue_monthly_extra,
+    sum(mta_tax) as revenue_monthly_mta_tax,
+    sum(tip_amount) as revenue_monthly_tip_amount,
+    sum(tolls_amount) as revenue_monthly_tolls_amount,
+    sum(ehail_fee) as revenue_monthly_ehail_fee,
+    sum(improvement_surcharge) as revenue_monthly_improvement_surcharge,
+    sum(total_amount) as revenue_monthly_total_amount,
+
+    -- Additional calculations
+    count(tripid) as total_monthly_trips,
+    avg(passenger_count) as avg_monthly_passenger_count,
+    avg(trip_distance) as avg_monthly_trip_distance
+
+    from trips_data
+    group by 1,2,3
+
+```
+
 #### **Lineage View** 
 
 ![alt text](./images/ae29.png)
@@ -776,6 +867,23 @@ Now, we need to specify to dbt, after it's identified the connections between th
 ```
 
 Note that we want the entirety of data available in our BQ, and not just the first 100. So, we override the macro value with `False` in the dbt run command, so the value `False` is taken into consideration when building both the staging models. 
+
+### Testing & Documentation 
+
+To understand the concept of **tests** and how they're executed, check [this](#key-concepts-and-setup-of-dbt-models).  
+
+`codegen package` aims to make testing easier for you, one of the many capabilities of the package macros include:
+
+Macro:
+
+![alt text](./images/ae32.png)
+
+Result:
+
+![alt text](./images/ae33.png)
+
+This gives you the `model` details and you can directly copy+paste it into to your schema to further define contraints and checks on each field of data/column as per the tests. 
+
 
 ### Important notes
 
