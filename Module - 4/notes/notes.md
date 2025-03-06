@@ -656,6 +656,126 @@ Similarly, create another model [stg_yellow_tripdata.sql](../dbt_taxi_data/model
 
 Create a `Core` folder inside `models`. Here, we create fact and dim models, and also, upload/setup `taxi_zone_lookup.csv` in `seeds` as there's no source defined for this. 
 
+#### **Seed: `taxi_zone_lookup.csv`**
+- Copy `taxi_zone_lookup.csv` into the seeds directory.
+- Run `dbt build --select taxi_zone_lookup.csv`. 
+
+```
+13:17:48 1 of 1 START seed file zoomcamp.taxi_zone_lookup ............................... [RUN]
+13:17:54 1 of 1 OK loaded seed file zoomcamp.taxi_zone_lookup ........................... [INSERT 265 in 6.21s]
+```
+
+#### **Model 1: dim_zones.sql**
+
+`dim_zones` is a master data table containing all the zone information where the taxis operate. These taxis move within specific zones, and we want to ensure we have accurate information about them.
+
+Since we don’t have source data for this, we’ll use the seeds mentioned earlier. For this, we'll leverage the taxi_zone_lookup file. It’s unlikely that this data will change frequently (hence, the *seed*).
+
+As mentioned above, we'll copy the CSV data in it's raw form (I took it from Module -1), and include it in our project under the seeds folder as `taxi_zone_lookup.csv`, and it can be downloaded directly from GitHub if needed. his master data will allow us to connect the data with the taxi_zone_lookup table for additional context. 
+
+```sql 
+{{ config(materialized='table') }}
+
+select 
+    locationid, 
+    borough, 
+    zone, 
+    replace(service_zone,'Boro','Green') as service_zone 
+from {{ ref('taxi_zone_lookup') }}
+```
+`Boro` is actually an inconsistency in the source. It's meant for green trips, and that's why we replace the word boro with green in ther service_zone column. 
+> Note: Typing `__` auto generates the rest of the command for you, which in this case is {{ ref('') }}.  
+
+#### **Model 2: fact_trips.sql**
+
+This is fact table for trips (fact_trips), where we culminate the data from all sources (green and yellow trip) into a **single fact table**, *join* it with the dimensional data created in `dim_zones.sql`, and materialize it as a table. Materializing it as a table ensures better performance for analytics because we want this data to persist because of it's large size. 
+
+```sql
+{{
+    config(
+        materialized='table'
+    )
+}}
+
+with green_tripdata as (
+    select *, 
+        'Green' as service_type
+    from {{ ref('stg_green_tripdata') }}
+), 
+yellow_tripdata as (
+    select *, 
+        'Yellow' as service_type
+    from {{ ref('stg_yellow_tripdata') }}
+), 
+trips_unioned as (
+    select * from green_tripdata
+    union all 
+    select * from yellow_tripdata
+), 
+dim_zones as (
+    select * from {{ ref('dim_zones') }}
+    where borough != 'Unknown'
+)
+select trips_unioned.tripid, 
+    trips_unioned.vendorid, 
+    trips_unioned.service_type,
+    trips_unioned.ratecodeid, 
+    trips_unioned.pickup_locationid, 
+    pickup_zone.borough as pickup_borough, 
+    pickup_zone.zone as pickup_zone, 
+    trips_unioned.dropoff_locationid,
+    dropoff_zone.borough as dropoff_borough, 
+    dropoff_zone.zone as dropoff_zone,  
+    trips_unioned.pickup_datetime, 
+    trips_unioned.dropoff_datetime, 
+    trips_unioned.store_and_fwd_flag, 
+    trips_unioned.passenger_count, 
+    trips_unioned.trip_distance, 
+    trips_unioned.trip_type, 
+    trips_unioned.fare_amount, 
+    trips_unioned.extra, 
+    trips_unioned.mta_tax, 
+    trips_unioned.tip_amount, 
+    trips_unioned.tolls_amount, 
+    trips_unioned.ehail_fee, 
+    trips_unioned.improvement_surcharge, 
+    trips_unioned.total_amount, 
+    trips_unioned.payment_type, 
+    trips_unioned.payment_type_description
+from trips_unioned
+inner join dim_zones as pickup_zone
+on trips_unioned.pickup_locationid = pickup_zone.locationid
+inner join dim_zones as dropoff_zone
+on trips_unioned.dropoff_locationid = dropoff_zone.locationid
+```
+We do three things here:
+
+ - Add `service_type` `green` and `yellow` in each table as an identifier for later transformations. 
+ - Disregard the data entries where the `Borough` is `Unknown`. 
+ - `Inner join` on `dim_zones` twice, once for `pickup_locationid` and one for `dropoff_locationid`.
+
+#### **Lineage View** 
+
+![alt text](./images/ae29.png)
+
+Now, we need to specify to dbt, after it's identified the connections between the models, and the sources/seeds, to build the resulting model in a certain order. In order to do that we select, the below:
+
+![alt text](./images/ae30.png)
+
+#### Build Result
+
+![alt text](./images/ae31.png)
+
+```sql 
+-- dbt build --select <model.sql> --vars '{'is_test_run: false}'
+{% if var('is_test_run', default=true) %}
+
+  limit 100
+
+{% endif %}
+```
+
+Note that we want the entirety of data available in our BQ, and not just the first 100. So, we override the macro value with `False` in the dbt run command, so the value `False` is taken into consideration when building both the staging models. 
 
 ### Important notes
 
