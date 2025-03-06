@@ -10,7 +10,7 @@
 - [Setting up dbt with bigquery](#setting-up-dbt-with-bigquery)
 - [Setting up dbt with postgres](#start-your-dbt-with-postgres)
 - [Development of dbt models](#development-of-dbt-models)
-    - [Modular Data Modeling - Fact and Dimesions](#modular-data-modelling)
+    - [Modular Data Modeling - Fact & Dimesions](#modular-data-modelling)
     - [Anatomy of a dbt model](#anatomy-of-a-dbt-model)
     - [Key concepts and setup of dbt models](#key-concepts-and-setup-of-dbt-models)
 - [Developing staging models - Prelim processing](#developing-staging-models)
@@ -18,6 +18,7 @@
     - [Model 1 - stg_green_tripdata.sql](#model-1-stg_green_tripdatasql)
     - [Model 2 - stg_yellow_tripdata.sql](#model-1-stg_yellow_tripdatasql)
     - [Lineage View of Staging models](#lineage-view)
+- [Developing Core Models - Fact & Dimensions]
 - [Important Notes](#important-notes)
 - [Troubleshooting](#troubleshooting-errors)
 
@@ -650,6 +651,11 @@ Similarly, create another model [stg_yellow_tripdata.sql](../dbt_taxi_data/model
 #### **Lineage View**
 
 ![alt text](./images/ae28.png)
+
+### Developing Core Models - Fact & Dimensions
+
+Create a `Core` folder inside `models`. Here, we create fact and dim models, and also, upload/setup `taxi_zone_lookup.csv` in `seeds` as there's no source defined for this. 
+
 
 ### Important notes
 
