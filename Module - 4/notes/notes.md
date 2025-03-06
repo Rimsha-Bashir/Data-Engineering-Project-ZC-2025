@@ -626,8 +626,11 @@ In the above block of code, we `cast` the columns into appropriate data types, r
 {% endif %}
 ```
 These are variables. Check notes for variables [here](#modular-data-modeling). 
+It's also a macro, so you can define it under macros seperately and call it here as well. 
 
-Errors encountered:
 
-It's not `generate_surrogate_key`, it's `surrogate_key`
-Changed project name in dbt from zoomcamp_dbt to zoomcamp - it must be the dataset name in BQ. 
+
+### Troubleshooting errors
+
+- It's not `generate_surrogate_key`, it's `surrogate_key`
+- Changed credential details for the connection. In it, the dataset name was zoomcamp_dbt. Updated it to zoomcamp and restarted the IDE.   
