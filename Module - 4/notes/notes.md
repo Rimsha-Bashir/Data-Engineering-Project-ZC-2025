@@ -3,7 +3,23 @@
 - [Data Modeling Concepts](#data-modeling-concepts)
     - [ETL v/s ELT](#etl-vs-elt)
     - [Dimensional Modeling](#kimballs-dimensional-modeling)
-- [Intro to DBT](#intro-to-dbt)
+- [Intro to dbt](#intro-to-dbt)
+    - [What is dbt?](#what-is-dbt)
+    - [How does dbt work?](#how-does-dbt-work)
+    - [How to use dbt?](#how-to-use-dbt)
+- [Setting up dbt with bigquery](#setting-up-dbt-with-bigquery)
+- [Setting up dbt with postgres](#start-your-dbt-with-postgres)
+- [Development of dbt models](#development-of-dbt-models)
+    - [Modular Data Modeling - Fact and Dimesions](#modular-data-modelling)
+    - [Anatomy of a dbt model](#anatomy-of-a-dbt-model)
+    - [Key concepts and setup of dbt models](#key-concepts-and-setup-of-dbt-models)
+- [Developing staging models - Prelim processing](#developing-staging-models)
+    - [Model Config file - schema.yml](#schemayml)
+    - [Model 1 - stg_green_tripdata.sql](#model-1-stg_green_tripdatasql)
+    - [Model 2 - stg_yellow_tripdata.sql](#model-1-stg_yellow_tripdatasql)
+    - [Lineage View of Staging models](#lineage-view)
+- [Important Notes](#important-notes)
+- [Troubleshooting](#troubleshooting-errors)
 
 
 ### Analytics Engineering Basics
@@ -130,9 +146,8 @@ There are two ways to use dbt
     - Includes a CLI interface to run dbt commands locally.
     - Open-source and free to use.
 
-#### How are we going to use dbt?
 
-There are two ways to use dbt, and throughout the project, you'll see videos illustrating these approaches: version A and version B.
+There are two ways to implement the above, and throughout the project, you'll see videos illustrating these approaches: version A and version B.
 
 - `Version A` primarily uses BigQuery as the data warehouse. This method involves using the dbt Cloud Developer plan, which is free. You can create an account at no cost, and since this is cloud-based, there’s no need to install dbtcore locally.
 
@@ -211,7 +226,7 @@ Click on `Initialize dbt` to create `starter dbt models` and a host of files are
 
 
 
-### Start Your dbt Project: Postgres and dbt Core Locally
+### Start Your dbt with Postgres
 
 [YT Link](https://www.youtube.com/watch?v=1HmL63e-vRs&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=36)
 
@@ -264,7 +279,7 @@ Materialization Strategies:
 3. Table: This materializes as a table in the physical database. Each time you run the model, DBT drops the existing table and recreates it with the CREATE TABLE AS SELECT statement, as shown earlier.
 4. Incremental: This is a more advanced materialization type. It also materializes as a table in the physical database, but instead of recreating the table entirely, it can work in two ways: Drop the table and recreate it with the SELECT statement or Insert only the new data into the table, allowing you to update the table incrementally.
 
-#### Modular Data Modeling
+#### Key concepts and setup of dbt models
 
 <details>
   <summary>DBT (Data Build Tool) Explained Simply</summary>
@@ -517,7 +532,7 @@ Run the command **dbt build --m <model.sql> --var `is_test_run: False`** and cha
 
 This method, often referred to as a "dev limit," is highly recommended for optimizing development workflows. By default, you’ll have faster and cheaper queries during development, but the limit can easily be removed when working with the full production data.
 
-#### Developing the first staging model
+### Developing staging models
 
 We will now create our first model.
 
@@ -529,7 +544,7 @@ We will begin by creating 2 new folders under our models folder:
 Under the models directory, there is a folder named staging inside dbt_taxi_data which is my dbt project name. This will represent the initial layer of models responsible for cleaning the source data. 
 Inside the staging folder, there is a schema.yml file for defining the sources (two tables for green and yellow trip data):
 
-**schema.yml**
+#### **schema.yml**
 
 ```yaml
 version: 2
@@ -556,7 +571,7 @@ In this file, we'll define the sources and we'll define the database and schema 
 One advantage of using DBT's approach is that it adheres to the DRY (Don't Repeat Yourself) principle. If we change the schema or table name in the YAML file, all dependent models will automatically update without requiring code changes in multiple places.
 
 
-**Model 1: stg_green_tripdata.sql**
+#### **Model 1: stg_green_tripdata.sql**
 
 ```sql
 {{
@@ -628,6 +643,23 @@ In the above block of code, we `cast` the columns into appropriate data types, r
 These are variables. Check notes for variables [here](#modular-data-modeling). 
 It's also a macro, so you can define it under macros seperately and call it here as well. 
 
+#### **Model 2: stg_yellow_tripdata.sql**
+
+Similarly, create another model [stg_yellow_tripdata.sql](../dbt_taxi_data/models/staging/stg_yellow_tripdata.sql) for yellow_tripdata by modifying necessary values and field names. 
+ 
+#### **Lineage View**
+
+![alt text](./images/ae28.png)
+
+### Important notes
+
+1. What is the profiles.yml file in dbt Core?
+
+    The profiles.yml file in dbt Core is a critical configuration file that stores connection details needed for dbt to communicate with a data warehouse. It plays a vital role in the dbt Core setup by providing the credentials and configurations required to execute transformations on your data. When dbt Core is run from the command line, it uses the profile name specified in the dbt_project.yml file to locate the corresponding profile in profiles.yml. Understanding the structure and purpose of connection profiles in dbt is essential for effectively managing database connections.
+
+2. How does dbt Cloud simplify connection management compared to dbt Core?
+
+    Dbt Cloud streamlines connection management by offering a web-based interface, eliminating the need for manually creating and managing a profiles.yml file. This makes dbt Cloud a user-friendly alternative for setting up and managing data warehouse connections. In dbt Cloud, connections are configured directly through the platform, centralizing management and enhancing security by securely storing credentials. This approach significantly reduces complexity, particularly for users unfamiliar with YAML configuration files.
 
 
 ### Troubleshooting errors
