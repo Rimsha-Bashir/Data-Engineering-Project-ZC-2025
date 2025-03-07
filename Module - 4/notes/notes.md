@@ -969,7 +969,7 @@ To do this, we first create a `Production` environment in dbt as we've been work
     - Specify Env name as `Production`
     - Choose `Production` as deployment type. 
     - Set the Warehouse connection to sue for this env, which in my case will be `zoomcamp_bigquery`
-    - Set Deployment credentials, dataset name as `prod` 
+    - Set Deployment credentials, dataset name as `prod` (create this dataset manually in BQ - check [troubleshooting errors](#troubleshooting-errors) section.) 
     - `Save`
 2. Now you can `Create jobs`. This is the Scheduler. 
     - Select the `Deploy job` from the Create job dropdown. 
@@ -981,7 +981,11 @@ To do this, we first create a `Production` environment in dbt as we've been work
     - `Save`
 3. This takes you the next step where you can run the deploy job.  
 
+![alt text](./images/ae37.png)
 
+In BigQuery:
+
+![alt text](./images/ae38.png)
 
 ### Important notes
 
@@ -1009,7 +1013,7 @@ To do this, we first create a `Production` environment in dbt as we've been work
     
     **Manually Create the prod Dataset in BigQuery**
 
-    Since dbt creates datasets in the US by default, you need to manually create the prod dataset in the correct location (europe-west10 or EU):
+    Since dbt creates datasets in the US by default, you need to manually create the prod dataset in the correct location (europe-west1):
 
     - Go to Google Cloud Console → BigQuery.
     - In the navigation panel, select your project.
