@@ -37,8 +37,10 @@ models:
   dbt_taxi_data:
     # Applies to all files under models/example/
 
-    example:
-      +materialized: table
+    staging:
+      materialized: view
+    core:
+      materialized: table
 
 vars:
   payment_type_values: [1, 2, 3, 4, 5, 6]
