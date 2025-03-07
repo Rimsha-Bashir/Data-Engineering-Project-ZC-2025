@@ -18,14 +18,15 @@
     - [Model 1 - stg_green_tripdata.sql](#model-1-stg_green_tripdatasql)
     - [Model 2 - stg_yellow_tripdata.sql](#model-1-stg_yellow_tripdatasql)
     - [Lineage View of Staging models](#lineage-view)
-- [Developing Core Models - Fact & Dimensions]
+- [Developing Core Models - Fact & Dimensions](#developing-core-models---fact--dimensions)
     - [Seed: taxi_zone_lookup.csv](#seed-taxi_zone_lookupcsv)
     - [Model 1 - dim_zones.sql](#model-1-dim_zonessql)
     - [Model 2 - fact_trips.sql](#model-2-fact_tripssql)
     - [Model 3 - dm_monthly_zone_revenue.sql]()
     - [Lineage View of Core + Staging models](#lineage-view-1)
     - [Build Results](#build-result)
-- [Testing & Documentation]()
+- [Testing & Documentation](#testing--documentation)
+- [Deploying the project (using dbt Cloud)](#deploying-the-project-dbt-cloud)
 - [Important Notes](#important-notes)
 - [Troubleshooting](#troubleshooting-errors)
 
@@ -412,179 +413,228 @@ Materialization Strategies:
     - Operate on the results of one query to generate another query.
     - Abstract snippets of SQL into reusable macros.
 
-dbt already includes a series of macros like config(), source() and ref(), but custom macros can also be defined.
+    dbt already includes a series of macros like config(), source() and ref(), but custom macros can also be defined.
 
-Unlike functions in Python, the input and output of a macro result in dynamically generated SQL code. Macros are very useful for simplifying repetitive code, adhering to the DRY (Don't Repeat Yourself) principle, and enabling dynamic code generation. For example, you can use loops within a macro to generate complex SQL constructs like case statements.
+    Unlike functions in Python, the input and output of a macro result in dynamically generated SQL code. Macros are very useful for simplifying repetitive code, adhering to the DRY (Don't Repeat Yourself) principle, and enabling dynamic code generation. For example, you can use loops within a macro to generate complex SQL constructs like case statements.
 
-Let’s create a macro called get_payment_type_description. It will take a parameter, such as payment_type, and generate a SQL case statement. The syntax for defining macros is similar to Python functions:
+    Let’s create a macro called get_payment_type_description. It will take a parameter, such as payment_type, and generate a SQL case statement. The syntax for defining macros is similar to Python functions:
 
-- Use macro to define the macro.
-- Provide the macro's name.
-- Specify its parameters.
-- Include the SQL code to be dynamically generated
-Macros are defined in separate .sql files which are typically stored in a macros directory.
+    - Use macro to define the macro.
+    - Provide the macro's name.
+    - Specify its parameters.
+    - Include the SQL code to be dynamically generated
+    Macros are defined in separate .sql files which are typically stored in a macros directory.
 
-<details>
-<summary>Jinja Delims</summary>
+    <details>
+    <summary>Jinja Delims</summary>
 
-There are 3 kinds of Jinja delimiters:
+    There are 3 kinds of Jinja delimiters:
 
-1. {% ... %} for statements (control blocks, macro definitions)
-2. {{ ... }} for expressions (literals, math, comparisons, logic, macro calls...)
-3. {# ... #} for comments.
+    1. {% ... %} for statements (control blocks, macro definitions)
+    2. {{ ... }} for expressions (literals, math, comparisons, logic, macro calls...)
+    3. {# ... #} for comments.
 
-</details>
+    </details>
 
-Here’s an example of `get_payment_type_description.sql` macro:
+    Here’s an example of `get_payment_type_description.sql` macro:
 
-{#
-    This macro returns the description of the payment_type 
-#}
+    {#
+        This macro returns the description of the payment_type 
+    #}
 
-{% macro get_payment_type_description(payment_type) -%}
+    {% macro get_payment_type_description(payment_type) -%}
 
-    case {{ dbt.safe_cast("payment_type", api.Column.translate_type("integer")) }}  
-        when 1 then 'Credit card'
-        when 2 then 'Cash'
-        when 3 then 'No charge'
-        when 4 then 'Dispute'
-        when 5 then 'Unknown'
-        when 6 then 'Voided trip'
-        else 'EMPTY'
-    end
+        case {{ dbt.safe_cast("payment_type", api.Column.translate_type("integer")) }}  
+            when 1 then 'Credit card'
+            when 2 then 'Cash'
+            when 3 then 'No charge'
+            when 4 then 'Dispute'
+            when 5 then 'Unknown'
+            when 6 then 'Voided trip'
+            else 'EMPTY'
+        end
 
-{%- endmacro %}
+    {%- endmacro %}
 
-This macro is designed to return the description of a given payment_type in a SQL context. It uses a CASE statement to map integer values of payment_type to their corresponding descriptions.
+    This macro is designed to return the description of a given payment_type in a SQL context. It uses a CASE statement to map integer values of payment_type to their corresponding descriptions.
 
-The macro uses dbt.safe_cast to ensure payment_type is safely converted to an integer (or a compatible type). This is useful for ensuring type compatibility in SQL.
+    The macro uses dbt.safe_cast to ensure payment_type is safely converted to an integer (or a compatible type). This is useful for ensuring type compatibility in SQL.
 
-api.Column.translate_type("integer") helps translate the type definition for the database being used.
+    api.Column.translate_type("integer") helps translate the type definition for the database being used.
 
-The macro outputs the resulting SQL CASE statement, which can then be embedded in a query to dynamically resolve the description of the payment type.
+    The macro outputs the resulting SQL CASE statement, which can then be embedded in a query to dynamically resolve the description of the payment type.
 
-Example Usage:
-
-
-![alt text](./images/ae25.jpg)
+    Example Usage:
 
 
-We can observe the macro in the stg_green_tripdata.sql file, line 42:
-
-{{ get_payment_type_description("payment_type") }} as payment_type_description
-The output of the macro is included in the query as a new column named payment_type_description. For instance:
+    ![alt text](./images/ae25.jpg)
 
 
-![alt text](./images/ae26.jpg)
+    We can observe the macro in the stg_green_tripdata.sql file, line 42:
+
+    {{ get_payment_type_description("payment_type") }} as payment_type_description
+    The output of the macro is included in the query as a new column named payment_type_description. For instance:
 
 
-When compiled, DBT will replace the macro call with the actual SQL case statement. This approach saves time and effort when dealing with large-scale projects.
+    ![alt text](./images/ae26.jpg)
 
-Macros can also be reused across projects by creating packages. A DBT package is similar to a library in other programming languages. It can contain models, macros, and other reusable components. By adding a package to your project, you can leverage its functionality anywhere in your codebase.
 
-For example, if you find yourself frequently using a macro like get_payment_type_description across multiple projects, you can bundle it into a package and include it in your DBT projects using the packages.yml file.
+    When compiled, DBT will replace the macro call with the actual SQL case statement. This approach saves time and effort when dealing with large-scale projects.
+
+    Macros can also be reused across projects by creating packages. A DBT package is similar to a library in other programming languages. It can contain models, macros, and other reusable components. By adding a package to your project, you can leverage its functionality anywhere in your codebase.
+
+    For example, if you find yourself frequently using a macro like get_payment_type_description across multiple projects, you can bundle it into a package and include it in your DBT projects using the packages.yml file.
 
 3. **`Packages`**
 
-Macros can be exported to packages, similarly to how classes and functions can be exported to libraries in other languages. Packages contain standalone dbt projects with models and macros that tackle a specific problem area.
+    Macros can be exported to packages, similarly to how classes and functions can be exported to libraries in other languages. Packages contain standalone dbt projects with models and macros that tackle a specific problem area.
 
-When you add a package to your project, the package's models and macros become part of your own project. A list of useful packages can be found in the [dbt package hub](https://hub.getdbt.com/). Adding and using a package is a two step process: 
+    When you add a package to your project, the package's models and macros become part of your own project. A list of useful packages can be found in the [dbt package hub](https://hub.getdbt.com/). Adding and using a package is a two step process: 
 
-- To use a package, you must first create a `packages.yml` file in the root of your work directory. Here's an example:
+    - To use a package, you must first create a `packages.yml` file in the root of your work directory. Here's an example:
 
-    ```yml
-    packages:
-    - package: dbt-labs/dbt_utils
-        version: 0.8.0
-    ``` 
+        ```yml
+        packages:
+        - package: dbt-labs/dbt_utils
+            version: 0.8.0
+        ``` 
 
-    After declaring your packages in the `packages.yml` file, you need to install them by running the `dbt deps` command either locally or on dbt Cloud. This will download and install the packages into your project. You can find the installed packages and their macros under the dbt_packages directory.
+        After declaring your packages in the `packages.yml` file, you need to install them by running the `dbt deps` command either locally or on dbt Cloud. This will download and install the packages into your project. You can find the installed packages and their macros under the dbt_packages directory.
 
-    ![alt text](./images/ae27.png)
+        ![alt text](./images/ae27.png)
 
-- You may access macros inside a package in a similar way to how Python access class methods:
+    - You may access macros inside a package in a similar way to how Python access class methods:
 
-    ```sql
-    select
-        {{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid,
-        cast(vendorid as integer) as vendorid,
-        -- ...
-    ```
-    The `surrogate_key()` macro generates a hash of the `vendor_id` and `lpep_pickup_datetime` fields to create a unique identifier for each row (as one vendor can only pickup one customer at the pickup time specified). A good practice is to include this surrogate key at the beginning of your table, as it helps define the granularity of the data.
+        ```sql
+        select
+            {{ dbt_utils.surrogate_key(['vendorid', 'lpep_pickup_datetime']) }} as tripid,
+            cast(vendorid as integer) as vendorid,
+            -- ...
+        ```
+        The `surrogate_key()` macro generates a hash of the `vendor_id` and `lpep_pickup_datetime` fields to create a unique identifier for each row (as one vendor can only pickup one customer at the pickup time specified). A good practice is to include this surrogate key at the beginning of your table, as it helps define the granularity of the data.
 
 5. **`Variables`**
 
-The concept of variables in DBT is similar to variables in any programming language. A variable acts like a container where you store a value that you want to use later, and you can access it whenever needed. Variables are typically defined in two different ways: 
+    The concept of variables in DBT is similar to variables in any programming language. A variable acts like a container where you store a value that you want to use later, and you can access it whenever needed. Variables are typically defined in two different ways: 
 
-- In DBT, variables can be defined at the project level *within* the dbt_project.yml file, allowing you to use them across various models or macros. For example, you might define a variable payment_type_values as a list of numbers:
+    - In DBT, variables can be defined at the project level *within* the dbt_project.yml file, allowing you to use them across various models or macros. For example, you might define a variable payment_type_values as a list of numbers:
 
-```yml    
-    vars:
-    payment_type_values: [1, 2, 3, 4, 5, 6]
-```
+    ```yml    
+        vars:
+        payment_type_values: [1, 2, 3, 4, 5, 6]
+    ```
 
-This list could be used in different scenarios, such as building a CASE statement by looping through the list. Running a test to check if the actual values in the table are part of the list or dynamically setting a variable's value within a macro using the var marker.
+    This list could be used in different scenarios, such as building a CASE statement by looping through the list. Running a test to check if the actual values in the table are part of the list or dynamically setting a variable's value within a macro using the var marker.
 
-- Additionally, you can pass a value for a variable *during execution*. This allows you to customize behavior dynamically at runtime. To access a variable, use the var() marker.
+    - Additionally, you can pass a value for a variable *during execution*. This allows you to customize behavior dynamically at runtime. To access a variable, use the var() marker.
 
-Here’s an example in `stg_green_tripdata`:
+    Here’s an example in `stg_green_tripdata`:
 
-```yml
-    {% if var('is_test_run', default=true) %}
+    ```yml
+        {% if var('is_test_run', default=true) %}
 
-    limit 100
+        limit 100
 
-    {% endif %}
-```
-Run the command **dbt build --m <model.sql> --var `is_test_run: False`** and change is_test_run to `True` in order to limit the output of the `stg_green_tripdata.sql` by 100 entries only. If False, the query proceeds without the limit. The code also defines a default value for is_test_run, which is True. This means that unless specified otherwise, LIMIT 100 will always be added by default. This is a useful technique for development, as it allows you to test with smaller datasets (faster and cheaper queries) while ensuring full production data is used during deployment by setting is_test_run to False.
+        {% endif %}
+    ```
+    Run the command **dbt build --m <model.sql> --var `is_test_run: False`** and change is_test_run to `True` in order to limit the output of the `stg_green_tripdata.sql` by 100 entries only. If False, the query proceeds without the limit. The code also defines a default value for is_test_run, which is True. This means that unless specified otherwise, LIMIT 100 will always be added by default. This is a useful technique for development, as it allows you to test with smaller datasets (faster and cheaper queries) while ensuring full production data is used during deployment by setting is_test_run to False.
 
-This method, often referred to as a "dev limit," is highly recommended for optimizing development workflows. By default, you’ll have faster and cheaper queries during development, but the limit can easily be removed when working with the full production data.
+    This method, often referred to as a "dev limit," is highly recommended for optimizing development workflows. By default, you’ll have faster and cheaper queries during development, but the limit can easily be removed when working with the full production data.
 
 6. **`Tests`**
 
-DBT tests are assumptions we make about our data. They're essentially statements that select data we don’t want to have. If the query produces results, the test fails and stops execution immediately, preventing the building of dependent models. For example, when building a project, if the query returns no results, the test passes, the data is good, and no alerts are triggered.
+    DBT tests are assumptions we make about our data. They're essentially statements that select data we don’t want to have. If the query produces results, the test fails and stops execution immediately, preventing the building of dependent models. For example, when building a project, if the query returns no results, the test passes, the data is good, and no alerts are triggered.
 
-These assumptions are primarily defined in YAML files like our schema.yml and are compiled into SQL code. DBT comes with four out-of-the-box tests:
+    These assumptions are primarily defined in YAML files like our schema.yml and are compiled into SQL code. DBT comes with four out-of-the-box tests:
 
-- `Unique Test` - Ensures the uniqueness of a field in the data model.
-- `Not Null Test` - Verifies that a field does not contain null values.
-- `Accepted Values Test` - Checks if a field contains only predefined valid values.
-- `Foreign Key Test` - Ensures relationships between fields in different tables are valid.
+    - `Unique Test` - Ensures the uniqueness of a field in the data model.
+    - `Not Null Test` - Verifies that a field does not contain null values.
+    - `Accepted Values Test` - Checks if a field contains only predefined valid values.
+    - `Foreign Key Test` - Ensures relationships between fields in different tables are valid.
 
-Let's look into three cases here:
+    Let's look into three cases here:
 
-For example, the "Accepted Values" test might ensure that a field like payment_type only contains values 1, 2, 3, 4, or 5. If it’s outside this `range of values`, the test will fail:
+    1. For example, the "Accepted Values" test might ensure that a field like payment_type only contains values 1, 2, 3, 4, or 5. If it’s outside this `range of values`, the test will fail:
 
-```sql
-  - name: payment_type
-    description: A numeric code signifying how the passenger paid for the trip.
-    tests:
-      - accepted_values:
-          values: [1,2,3,4,5]
-          severity: warn
-```
-Another test ensures that pickup_location has a `valid relationship` to the ref_taxi_lookup table, verifying it corresponds to a valid taxi zone:
+        ```yml
+        - name: payment_type
+            description: A numeric code signifying how the passenger paid for the trip.
+            tests:
+            - accepted_values:
+                values: [1,2,3,4,5]
+                severity: warn
+        ```
 
-```sql
-  - name: Pickup_locationid
-    description: locationid where the meter was engaged.
-    tests:
-      - relationships:
-          to: ref('taxi_zone_lookup')
-          field: locationid
-          severity: warn
-```
-Similarly, trip_id must be `unique` and `not null`, as it’s the primary key:
+        This can also be written as: 
 
-```sql 
-  - name: tripid
-    description: Primary key for this table, generated with a concatenation of vendorid+pickup_datetime
-    tests:
-        - unique:
-            severity: warn
-        - not_null:
-            severity: warn
-```
+        ```yml
+        - name: Payment_type 
+                    description: >
+                    A numeric code signifying how the passenger paid for the trip.
+                    tests: 
+                    - accepted_values:
+                        values: "{{ var('payment_type_values') }}"
+                        severity: warn
+                        quote: false 
+        ```
+        Where `payment_type_values` is a variable defined in the `dbt_project.yml` file, and `Quote` is a necessary tage to add for BigQuery (not Postgres), otherwise it'll fail.  
+
+    2. Another test ensures that pickup_location has a `valid relationship` to the ref_taxi_lookup table, verifying it corresponds to a valid taxi zone:
+
+        ```yml
+        - name: Pickup_locationid
+            description: locationid where the meter was engaged.
+            tests:
+            - relationships:
+                to: ref('taxi_zone_lookup')
+                field: locationid
+                severity: warn
+        ```
+
+    3. Here, the trip_id must be `unique` and `not null`, as it’s the primary key:
+
+        ```yml
+        - name: tripid
+            description: Primary key for this table, generated with a concatenation of vendorid+pickup_datetime
+            tests:
+                - unique:
+                    severity: warn
+                - not_null:
+                    severity: warn
+        ```
+
+7. **`Documentations`**
+
+    dbt also provides a way to generate documentation for your dbt project and render it as a website. The dbt generated docs will include the following:
+
+    Information about the project:
+
+    - Model code (both from the .sql files and compiled code)
+    - Model dependencies
+    - Sources
+    - Auto generated DAGs from the ref() and source() macros
+    - Descriptions from the .yml files and tests
+    
+    Information about the Data Warehouse:
+
+    - Column names and data types
+    - Table stats like size and rows
+
+    dbt docs can be generated on the cloud or locally with this command:
+    
+    ```
+        dbt docs generate
+    ```
+    Example:
+
+    After running `dbt docs generate`, click on the `docs` icon here:
+
+    ![alt text](./images/ae35.png)
+
+    A new page/website with documentation opens up. 
+
+    ![alt text](./images/ae34.png)
+
 
 ### Developing staging models
 
@@ -853,6 +903,11 @@ Now, we need to specify to dbt, after it's identified the connections between th
 
 ![alt text](./images/ae30.png)
 
+The flow of execution:
+    - Retrieves the source files and ensures that it's `Fresh`, looks out for `tests` (checks for null values, invalid data etc). If there are pre-defined checks/tests, it will be executed. 
+    - It would then `build` the staging models for green and yellow trip data. And parallely, the taxi_zone_lookup.csv file will be seeded/built. After each model build, dbt will check if there are any tests defined for that specific model. If so, it will be built as well. 
+    - After the run and executions have been correctly, it's going to execute `fact_trips`
+
 #### Build Result
 
 ![alt text](./images/ae31.png)
@@ -870,20 +925,25 @@ Note that we want the entirety of data available in our BQ, and not just the fir
 
 ### Testing & Documentation 
 
-To understand the concept of **tests** and how they're executed, check [this](#key-concepts-and-setup-of-dbt-models).  
+To understand the concept of **tests** and **documentation** and how they're executed, check [this](#key-concepts-and-setup-of-dbt-models).  
 
-`codegen package` aims to make testing easier for you, one of the many capabilities of the package macros include:
+`codegen package` aims to make testing and documentation easier for you, one of the many capabilities of the package macros include:
 
-Macro:
+**Macro:**
 
 ![alt text](./images/ae32.png)
 
-Result:
+**Result:**
 
 ![alt text](./images/ae33.png)
 
 This gives you the `model` details and you can directly copy+paste it into to your schema to further define contraints and checks on each field of data/column as per the tests. 
 
+### Deploying the project (dbt Cloud)
+
+Now that we've deveoped, tested and documented necessary models, schemas and sources. The next step is `Deployment`, `VC` and `CI/CD`. 
+
+![alt text](./images/ae36.png)
 
 ### Important notes
 
