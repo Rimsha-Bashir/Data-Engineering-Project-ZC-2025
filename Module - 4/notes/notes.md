@@ -969,7 +969,7 @@ To do this, we first create a `Production` environment in dbt as we've been work
     - Specify Env name as `Production`
     - Choose `Production` as deployment type. 
     - Set the Warehouse connection to sue for this env, which in my case will be `zoomcamp_bigquery`
-    - Set Deployment credentials, dataset name as `prod` 
+    - Set Deployment credentials, dataset name as `prod` (create this dataset manually in BQ - check [troubleshooting errors](#troubleshooting-errors) section.) 
     - `Save`
 2. Now you can `Create jobs`. This is the Scheduler. 
     - Select the `Deploy job` from the Create job dropdown. 
@@ -981,7 +981,11 @@ To do this, we first create a `Production` environment in dbt as we've been work
     - `Save`
 3. This takes you the next step where you can run the deploy job.  
 
+![alt text](./images/ae37.png)
 
+In BigQuery:
+
+![alt text](./images/ae38.png)
 
 ### Important notes
 
@@ -998,3 +1002,25 @@ To do this, we first create a `Production` environment in dbt as we've been work
 
 - It's not `generate_surrogate_key`, it's `surrogate_key`
 - Changed credential details for the connection. In it, the dataset name was zoomcamp_dbt. Updated it to zoomcamp and restarted the IDE.   
+
+- Get this error block on trying to deploy my dbt project. 
+    ```
+    12:02:26 1 of 17 ERROR creating sql view model prod.stg_green_tripdata .................. [ERROR in 1.93s]
+    12:02:26 4 of 17 SKIP test accepted_values_stg_green_tripdata_Payment_type__False___var_payment_type_values_  [SKIP]
+    12:02:26 2 of 17 ERROR creating sql view model prod.stg_yellow_tripdata ................. [ERROR in 2.00s]
+    ```
+    Solution:
+    
+    **Manually Create the prod Dataset in BigQuery**
+
+    Since dbt creates datasets in the US by default, you need to manually create the prod dataset in the correct location (europe-west1):
+
+    - Go to Google Cloud Console → BigQuery.
+    - In the navigation panel, select your project.
+    - Click Create Dataset.
+    - Set the Dataset ID to prod.
+    - Set the Location to EU or europe-west10 (match the source dataset).
+    - Click Create.
+    - Now, dbt will use this dataset instead of trying to create one in the wrong location.
+
+
