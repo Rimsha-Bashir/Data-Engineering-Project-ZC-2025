@@ -987,6 +987,36 @@ In BigQuery:
 
 ![alt text](./images/ae38.png)
 
+#### What is CI/CD?
+
+Another important feature we can implement is creating a continuous integration (CI) job. When working with pull requests, it's essential to ensure automation and quality through CI/CD practices. It's implemented via `webhooks` in Github or Gitlab
+
+`CI (Continuous Integration)`: Regularly merging code changes into the main branch while automating builds and tests to avoid breaking production.
+
+`CD (Continuous Deployment)`: Automating the deployment process after the changes pass tests.
+
+Setting Up CI in dbt Cloud
+
+Go to `Deploy > Jobs` and from the `Create Job` drop down select `Continuous Integration Job (Run on Pull requests from GIT)`. 
+
+![alt text](./images/ae39.png)
+
+`dbt build --select state:modified+` 
+
+This command will check what's been modified (+) indicates children. You can also add your commands to perform tests, such as a check to ensure your models are documented. This job is triggered by pull requests and helps prevent breaking production.
+
+On executing the job, dbt Cloud creates a schema named `dbt_cloud_PR_<PR_name>` for the pull request. This schema is automatically dropped when the pull request is closed, ensuring that production and development environments remain unaffected. You can set the environment it will compare against, in the job I'm running, it will be production. (It can also be `No deferral`)
+
+So, say you make some changes in your files in dbt. In my case, I've edited the `dbt_project` to add the `seeds` block (later updated the headers in taxi_zone_lookup to lower case). Then, commit and create a pull request. It opens the Github repo as dbt cloud is connected to the repository. Here, you compare and `View Pull Request`. The job compares the changes to the `CI Check` production run, identifies affected models (e.g, taxi_zone_lookup), and executes tasks only for these models and their children. Once CI Check job passes, pull and merge.  
+
+Benefits of CI Jobs in dbt Cloud:
+
+- Automates tests and builds, reducing manual effort and errors.
+- Prevents breaking production by isolating changes in a temporary schema.
+- Builds confidence in the integration and deployment process.
+- Streamlines collaboration within the team by ensuring consistent workflows.
+- In this case, the process detected the modified fact_trips model and its children, ran the required tasks, and displayed a successful check. The fix was verified and ready for deployment, illustrating how CI jobs make the workflow efficient and reliable.
+
 ### Important notes
 
 1. What is the profiles.yml file in dbt Core?
@@ -1022,5 +1052,22 @@ In BigQuery:
     - Set the Location to EU or europe-west10 (match the source dataset).
     - Click Create.
     - Now, dbt will use this dataset instead of trying to create one in the wrong location.
+
+- The above error is shown again when running the CI job. 
+
+    Solution:
+
+    When you are creating the pull request and running the CI, dbt is creating a new schema on BigQuery. By default that new schema will be created on ‘US’ location, if you have your dataset, schemas and tables on EU that will generate an error and the pull request will not be accepted. To change that location to EU on the connection to BigQuery from dbt we need to add the location `europe-west1` on the connection optional settings:
+
+    `Dbt -> project -> settings -> connection BigQuery -> Optional Settings -> Location ->` **europe-west1**
+
+- Seeding error : taxi_zone_lookup can not be seeded on trying to run CI job. 
+
+    Solution:
+    - Updated the file, copied it directly from raw in datatalks repo. 
+    - Added a few more commands to the CI job - `dbt debug` and `dbt --select taxi_zone_lookup` 
+    (manually updated the file in `main`, but I think step 2 is what solved the error)
+
+    ![alt text](./images/ae40.png)
 
 
