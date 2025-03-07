@@ -998,3 +998,25 @@ To do this, we first create a `Production` environment in dbt as we've been work
 
 - It's not `generate_surrogate_key`, it's `surrogate_key`
 - Changed credential details for the connection. In it, the dataset name was zoomcamp_dbt. Updated it to zoomcamp and restarted the IDE.   
+
+- Get this error block on trying to deploy my dbt project. 
+    ```
+    12:02:26 1 of 17 ERROR creating sql view model prod.stg_green_tripdata .................. [ERROR in 1.93s]
+    12:02:26 4 of 17 SKIP test accepted_values_stg_green_tripdata_Payment_type__False___var_payment_type_values_  [SKIP]
+    12:02:26 2 of 17 ERROR creating sql view model prod.stg_yellow_tripdata ................. [ERROR in 2.00s]
+    ```
+    Solution:
+    
+    **Manually Create the prod Dataset in BigQuery**
+
+    Since dbt creates datasets in the US by default, you need to manually create the prod dataset in the correct location (europe-west10 or EU):
+
+    - Go to Google Cloud Console → BigQuery.
+    - In the navigation panel, select your project.
+    - Click Create Dataset.
+    - Set the Dataset ID to prod.
+    - Set the Location to EU or europe-west10 (match the source dataset).
+    - Click Create.
+    - Now, dbt will use this dataset instead of trying to create one in the wrong location.
+
+
