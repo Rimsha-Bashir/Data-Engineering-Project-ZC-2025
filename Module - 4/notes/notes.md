@@ -27,6 +27,9 @@
     - [Build Results](#build-result)
 - [Testing & Documentation](#testing--documentation)
 - [Deploying the project (using dbt Cloud)](#deploying-the-project-dbt-cloud)
+- [Deploying the project (using dbt Cloud)](#deploying-the-project-locally)
+- [Visualizing NYC data using Looker Studio](#visualizing-the-transformed-data-in-looker-studio)
+- [Visualizing NYC data using Metabase](#visualising-the-data-with-metabase)
 - [Important Notes](#important-notes)
 - [Troubleshooting](#troubleshooting-errors)
 
@@ -941,6 +944,8 @@ This gives you the `model` details and you can directly copy+paste it into to yo
 
 ### Deploying the project (dbt Cloud)
 
+[YT Link](https://www.youtube.com/watch?v=V2m5C0n8Gro&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=39)
+
 Now that we've deveoped, tested and documented necessary models, schemas and sources. The next step is `Deployment` where we aim to push the project to production (merge the code into the main branch). Later, we'll analyze the data in BigQuery and present the findings in Looker for the stakeholders. 
 
 ![alt text](./images/ae36.png)
@@ -1017,6 +1022,32 @@ Benefits of CI Jobs in dbt Cloud:
 - Streamlines collaboration within the team by ensuring consistent workflows.
 - In this case, the process detected the modified fact_trips model and its children, ran the required tasks, and displayed a successful check. The fix was verified and ready for deployment, illustrating how CI jobs make the workflow efficient and reliable.
 
+### Deploying the project locally 
+
+[YT Link](https://www.youtube.com/watch?v=Cs9Od1pcrzM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=40)
+
+### Visualizing the transformed data in Looker Studio
+
+[YT Link](https://www.youtube.com/watch?v=39nLTs74A3E&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=41)
+
+First, set the deploy_job_1 to run the command - `dbt build --select +dm_monthly_zone_revenue.sql+ --vars '{is_test_run: false}'`
+
+By doing this, we setup `prod` in BigQuery with the entire dataset (not just a limit of 100). Then, we'll use this prod dataset to visualize the data in looker studio.
+
+First, create a `datasource`, and select `BigQuery`. Then choose your table. Here, we'll select `prod` > `fact_trip` and connect. 
+
+![alt text](./images/ae41.png)
+
+Follow the link attached above to create the report:
+
+![alt text](./images/ae42.png)
+
+### Visualising the data with Metabase
+
+[YT Link](https://www.youtube.com/watch?v=BnLkrA7a6gM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=42)
+
+Using Open source metabase to create the BI report. Watch the video to understand how to use Metabase. 
+
 ### Important notes
 
 1. What is the profiles.yml file in dbt Core?
@@ -1026,6 +1057,12 @@ Benefits of CI Jobs in dbt Cloud:
 2. How does dbt Cloud simplify connection management compared to dbt Core?
 
     Dbt Cloud streamlines connection management by offering a web-based interface, eliminating the need for manually creating and managing a profiles.yml file. This makes dbt Cloud a user-friendly alternative for setting up and managing data warehouse connections. In dbt Cloud, connections are configured directly through the platform, centralizing management and enhancing security by securely storing credentials. This approach significantly reduces complexity, particularly for users unfamiliar with YAML configuration files.
+
+3. Difference between `dbt run` and `dbt build`
+    | **Command**   | **What it Does** | **When to Use** |
+    |--------------|-----------------|----------------|
+    | `dbt run`   | Executes models (i.e., runs `.sql` files in the `models/` directory) | When you only want to run models (without running tests or snapshots) |
+    | `dbt build` | Runs models (`dbt run`), tests (`dbt test`), snapshots (`dbt snapshot`), and seeds (`dbt seed`) all together | When you want a full pipeline execution, including data validation and freshness checks |
 
 
 ### Troubleshooting errors
