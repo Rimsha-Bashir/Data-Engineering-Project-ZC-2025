@@ -941,9 +941,45 @@ This gives you the `model` details and you can directly copy+paste it into to yo
 
 ### Deploying the project (dbt Cloud)
 
-Now that we've deveoped, tested and documented necessary models, schemas and sources. The next step is `Deployment`, `VC` and `CI/CD`. 
+Now that we've deveoped, tested and documented necessary models, schemas and sources. The next step is `Deployment` where we aim to push the project to production (merge the code into the main branch). Later, we'll analyze the data in BigQuery and present the findings in Looker for the stakeholders. 
 
 ![alt text](./images/ae36.png)
+
+involves taking all our code, opening a pull request, and merging the code into the main branch, which affects our production environment. In production, we’ll run the models, but there will be some differences. For example, during development, we often limit the data. In production, we need all the data without limits. Additionally, in a real-life production scenario, not everyone will have the same access rights. Not everyone will be able to write or read all the data. This is likely handled in a different database or schema with specific access controls.
+
+The deployment workflow works as follows:
+
+- `Development` is done in custom branches, with different teams or persons working on different aspects of the project in each. 
+
+- Meanwhile, `production` continues using the `main` branch, unaffected by the development branches.
+
+- When a development branch is ready for production, the team will open a push request, which if and when approved, will be merged into the main branch.
+
+- Now, you can run the models in the production environment using the main branch.
+
+- Later, as required you can set a schedule that will update the models on a specified basis. 
+
+#### Running the project in PROD
+
+Running the dbt project in production involves creation of a CI/CD pipeline that will be managed by the dbt `scheduler`. It has jobs running in sequence or parallely, as defined. These single job can run multiple commands, like dbt build, dbt deps etc, and maintain logs for each over time. 
+
+To do this, we first create a `Production` environment in dbt as we've been working on a `Development` one all this while. 
+
+1. In you dbt console, `go to Deploy > Create environment`. 
+    - Specify Env name as `Production`
+    - Choose `Production` as deployment type. 
+    - Set the Warehouse connection to sue for this env, which in my case will be `zoomcamp_bigquery`
+    - Set Deployment credentials, dataset name as `prod` 
+    - `Save`
+2. Now you can `Create jobs`. This is the Scheduler. 
+    - Select the `Deploy job` from the Create job dropdown. 
+    - Set the `Job settings`
+    - You can add/remove commands to be executed here under `Execution Settings`. 
+    - You can also select the checkbox for `Generate docs on run` and `Run source freshness`. 
+    - You can configure the `Schedule` run the pipeline at specified times.  
+    - There are some advanced settings as well. 
+
+
 
 ### Important notes
 
