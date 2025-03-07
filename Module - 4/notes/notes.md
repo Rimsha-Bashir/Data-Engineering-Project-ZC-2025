@@ -977,7 +977,9 @@ To do this, we first create a `Production` environment in dbt as we've been work
     - You can add/remove commands to be executed here under `Execution Settings`. 
     - You can also select the checkbox for `Generate docs on run` and `Run source freshness`. 
     - You can configure the `Schedule` run the pipeline at specified times.  
-    - There are some advanced settings as well. 
+    - There are some advanced settings as well.
+    - `Save`
+3. This takes you the next step where you can run the deploy job.  
 
 
 
