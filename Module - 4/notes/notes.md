@@ -22,7 +22,7 @@
     - [Seed: taxi_zone_lookup.csv](#seed-taxi_zone_lookupcsv)
     - [Model 1 - dim_zones.sql](#model-1-dim_zonessql)
     - [Model 2 - fact_trips.sql](#model-2-fact_tripssql)
-    - [Model 3 - dm_monthly_zone_revenue.sql]()
+    - [Model 3 - dm_monthly_zone_revenue.sql](#model-3-dm_monthly_zones_revenuesql)
     - [Lineage View of Core + Staging models](#lineage-view-1)
     - [Build Results](#build-result)
 - [Testing & Documentation](#testing--documentation)
