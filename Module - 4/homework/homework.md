@@ -98,12 +98,21 @@ Considering the data lineage below **and** that taxi_zone_lookup is the **only**
 
 Select the option that does **NOT** apply for materializing `fct_taxi_monthly_zone_revenue`:
 
-- `dbt run`
-- `dbt run --select +models/core/dim_taxi_trips.sql+ --target prod`
-- `dbt run --select +models/core/fct_taxi_monthly_zone_revenue.sql`
-- `dbt run --select +models/core/`
-- `dbt run --select models/staging/+`
+- dbt run
+- dbt run --select +models/core/dim_taxi_trips.sql+ --target prod
+- dbt run --select +models/core/fct_taxi_monthly_zone_revenue.sql
+- <mark>dbt run --select +models/core/</mark>
+- dbt run --select models/staging/+
 
+**Solution:**
+
+1. `dbt run` materializes/runs every model in the project (not seeds, snapshots etc - that's dbt build). 
+2. `dbt run --select +models/core/dim_taxi_trips.sql+ --target prod` - runs `dim_taxi_trips.sql` and all its dependencies (upstream & downstream) in PROD.
+3. `dbt run --select +models/core/fct_taxi_monthly_zone_revenue.sql` - Runs `fct_taxi_monthly_zone_revenue.sql` and all its upstream dependencies.
+4. `dbt run --select +models/core/` - Runs all models inside models/core/ and their upstream dependencies.
+5. `dbt run --select models/staging/+` - Runs all models inside models/staging/ and their downstream dependencies. Any models that depend on staging will run.
+
+By this, we can conclude that `dbt run --select models/staging/+` will not materialize `fct_taxi_monthly_zone_revenue` as it is independent of models in `staging`. 
 
 ### Question 4: dbt Macros and Jinja
 
@@ -136,11 +145,16 @@ And use on your staging, dim_ and fact_ models as:
 ```
 
 That all being said, regarding macro above, **select all statements that are true to the models using it**:
-- Setting a value for  `DBT_BIGQUERY_TARGET_DATASET` env var is mandatory, or it'll fail to compile
-- Setting a value for `DBT_BIGQUERY_STAGING_DATASET` env var is mandatory, or it'll fail to compile
-- When using `core`, it materializes in the dataset defined in `DBT_BIGQUERY_TARGET_DATASET`
-- When using `stg`, it materializes in the dataset defined in `DBT_BIGQUERY_STAGING_DATASET`, or defaults to `DBT_BIGQUERY_TARGET_DATASET`
-- When using `staging`, it materializes in the dataset defined in `DBT_BIGQUERY_STAGING_DATASET`, or defaults to `DBT_BIGQUERY_TARGET_DATASET`
+- Setting a value for  `DBT_BIGQUERY_TARGET_DATASET` env var is mandatory, or it'll fail to compile - **TRUE**
+- Setting a value for `DBT_BIGQUERY_STAGING_DATASET` env var is mandatory, or it'll fail to compile - **FALSE**
+- When using `core`, it materializes in the dataset defined in `DBT_BIGQUERY_TARGET_DATASET` - **TRUE**
+- When using `stg`, it materializes in the dataset defined in `DBT_BIGQUERY_STAGING_DATASET`, or defaults to `DBT_BIGQUERY_TARGET_DATASET` - **TRUE**
+- When using `staging`, it materializes in the dataset defined in `DBT_BIGQUERY_STAGING_DATASET`, or defaults to `DBT_BIGQUERY_TARGET_DATASET` - **TRUE**
+
+
+**Solution:**
+
+Only the second option is False, because if the env variable `DBT_BIGQUERY_STAGING_DATASET` is null, the variable value in `DBT_BIGQUERY_TARGET_DATASET` will be used by default. The code will compile nonetheless.   
 
 
 ## Serious SQL
@@ -156,6 +170,7 @@ You might want to add some new dimensions `year` (e.g.: 2019, 2020), `quarter` (
 ### Question 5: Taxi Quarterly Revenue Growth
 
 1. Create a new model `fct_taxi_trips_quarterly_revenue.sql`
+
 2. Compute the Quarterly Revenues for each year for based on `total_amount`
 3. Compute the Quarterly YoY (Year-over-Year) revenue growth 
   * e.g.: In 2020/Q1, Green Taxi had -12.34% revenue growth compared to 2019/Q1
@@ -168,8 +183,74 @@ Considering the YoY Growth in 2020, which were the yearly quarters with the best
 - green: {best: 2020/Q2, worst: 2020/Q1}, yellow: {best: 2020/Q2, worst: 2020/Q1}
 - green: {best: 2020/Q2, worst: 2020/Q1}, yellow: {best: 2020/Q3, worst: 2020/Q4}
 - green: {best: 2020/Q1, worst: 2020/Q2}, yellow: {best: 2020/Q2, worst: 2020/Q1}
-- green: {best: 2020/Q1, worst: 2020/Q2}, yellow: {best: 2020/Q1, worst: 2020/Q2}
+- <mark>green: {best: 2020/Q1, worst: 2020/Q2}, yellow: {best: 2020/Q1, worst: 2020/Q2}</mark>
 - green: {best: 2020/Q1, worst: 2020/Q2}, yellow: {best: 2020/Q3, worst: 2020/Q4}
+
+Solution:
+
+1. Modify `fact_trips.sql` to add necessary dimensions:
+    ```sql 
+    .
+    .
+    EXTRACT(YEAR from pickup_datetime) as pickup_year, 
+    EXTRACT(MONTH from pickup_datetime) as pickup_month, 
+    EXTRACT(QUARTER from pickup_datetime) as pickup_qtr, 
+    CONCAT(EXTRACT(YEAR from pickup_datetime), '/Q', EXTRACT(QUARTER from pickup_datetime)) as pickup_year_qtr,
+    .
+    .
+    ```
+    > Note: Everything in this model file remains the same as the file in `dbt_taxi_data` project, save for the addition of the few lines of code above to extract year, month, qtr, and year_qtr from `pickup_datetime`. 
+
+2. Create a new model `fct_taxi_trips_quarterly_revenue.sql`:
+
+    1. To compute the Quarterly Revenues for each year for based on `total_amount`
+        ```sql
+        {{ config(materialized="table") }}
+
+        select 
+            service_type, 
+            pickup_year, 
+            pickup_qtr, 
+            sum(total_amount) as total_amount
+        from {{ ref("fact_trips") }}
+        where pickup_year in (2019,2020)
+        group by service_type, pickup_year, pickup_qtr
+        order by 1, 2, 3
+        ```
+        Output of this model query after running `dbt build --vars '{'is_test_run': 'false'}'` - [fct_taxi_trips_quarterly_revenue.sql - Result-1](Q5-1.csv) 
+
+        > Note: Remember to set the `is_test_run: False` to get the full result. 
+
+    2. To compute the Quarterly YoY (Year-over-Year) revenue growth:
+
+        ```sql 
+        {{ config(materialized="table") }}
+
+        with
+            cte as (
+                select service_type, pickup_year, pickup_qtr, pickup_year_qtr, sum(total_amount) as total_revenue
+                from {{ ref("fact_trips") }}
+                where pickup_year in (2019, 2020)
+                group by 1, 2, 3, 4
+                order by 1, 2, 3
+            )
+        select
+            curr.service_type,
+            curr.pickup_year_qtr as cur_year_qtr,
+            prev.pickup_year_qtr as prev_year_qtr,
+            round(((curr.total_revenue - prev.total_revenue) / prev.total_revenue)*100,2) as YoY_Growth
+        from cte as curr
+        join
+            cte as prev
+            on curr.service_type = prev.service_type
+            and curr.pickup_year = prev.pickup_year + 1
+            and curr.pickup_qtr = prev.pickup_qtr
+        order by curr.service_type, curr.pickup_year, curr.pickup_qtr
+        ```
+
+        Output of this model query - [fct_taxi_trips_quarterly_revenue.sql - Result-2](Q5-2.csv) 
+
+The Answer is : `green: {best: 2020/Q1, worst: 2020/Q2}, yellow: {best: 2020/Q1, worst: 2020/Q2}`
 
 
 ### Question 6: P97/P95/P90 Taxi Monthly Fare
@@ -181,10 +262,48 @@ Considering the YoY Growth in 2020, which were the yearly quarters with the best
 Now, what are the values of `p97`, `p95`, `p90` for Green Taxi and Yellow Taxi, in April 2020?
 
 - green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 52.0, p95: 37.0, p90: 25.5}
-- green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 31.5, p95: 25.5, p90: 19.0}
+- <mark>green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 31.5, p95: 25.5, p90: 19.0}</mark>
 - green: {p97: 40.0, p95: 33.0, p90: 24.5}, yellow: {p97: 52.0, p95: 37.0, p90: 25.5}
 - green: {p97: 40.0, p95: 33.0, p90: 24.5}, yellow: {p97: 31.5, p95: 25.5, p90: 19.0}
 - green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 52.0, p95: 25.5, p90: 19.0}
+
+**Solution:**
+
+1. `fct_taxi_trips_monthly_fare_p95.sql` model 
+    ```sql 
+    {{ config(materialized="table") }}
+
+    with
+        filtered_entries as (
+            select service_type, pickup_year, pickup_month, fare_amount
+            from {{ ref("fact_trips") }}
+            where
+                fare_amount > 0
+                and trip_distance > 0
+                and payment_type_description in ('Cash', 'Credit card')
+        )
+
+    select
+        service_type,
+        pickup_year,
+        pickup_month,
+        approx_quantiles(fare_amount, 100)[offset(97)] as p97,
+        approx_quantiles(fare_amount, 100)[offset(95)] as p95,
+        approx_quantiles(fare_amount, 100)[offset(90)] as p90
+    from filtered_entries
+    group by service_type, pickup_year, pickup_month
+    ```
+    Build the project - `dbt build --vars '{'is_test_run': 'false'}'`
+
+2. Run in BigQuery
+
+    ```sql 
+    select * from zoomcamp.fct_taxi_trips_monthly_fare_p95
+    where pickup_year = 2020 and pickup_month = 4; 
+    ```
+**Output:**
+
+![alt text](Q6.png)
 
 
 ### Question 7: Top #Nth longest P90 travel time Location for FHV
