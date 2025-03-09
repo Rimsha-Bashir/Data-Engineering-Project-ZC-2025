@@ -310,7 +310,7 @@ Now, what are the values of `p97`, `p95`, `p90` for Green Taxi and Yellow Taxi, 
 
 Prerequisites:
 * Create a staging model for FHV Data (2019), and **DO NOT** add a deduplication step, just filter out the entries where `where dispatching_base_num is not null`
-* Create a core model for FHV Data (`dim_fhv_trips.sql`) joining with `dim_zones`. Similar to what has been done [here](../../../04-analytics-engineering/taxi_rides_ny/models/core/fact_trips.sql)
+* Create a core model for FHV Data (`dim_fhv_trips.sql`) joining with `dim_zones`. Similar to what has been done [here](../dbt_taxi_data/models/core/fact_trips.sql)
 * Add some new dimensions `year` (e.g.: 2019) and `month` (e.g.: 1, 2, ..., 12), based on `pickup_datetime`, to the core model to facilitate filtering for your queries
 
 Now...
@@ -320,9 +320,128 @@ Now...
 
 For the Trips that **respectively** started from `Newark Airport`, `SoHo`, and `Yorkville East`, in November 2019, what are **dropoff_zones** with the 2nd longest p90 trip_duration ?
 
-- LaGuardia Airport, Chinatown, Garment District
+- <mark>LaGuardia Airport, Chinatown, Garment District</mark>
 - LaGuardia Airport, Park Slope, Clinton East
 - LaGuardia Airport, Saint Albans, Howard Beach
 - LaGuardia Airport, Rosedale, Bath Beach
 - LaGuardia Airport, Yorkville East, Greenpoint
 
+
+**Solution:**
+
+Pre-requisites:
+
+1. Staging model for fhv data - `stg_fhv_tripdata.sql`
+ 
+    ```sql
+    {{ config(materialized="view") }}
+
+    with
+        fhv_tripdata as (
+            select *
+            from {{ source("staging", "external_fhv_tripdata_2019") }}
+            where dispatching_base_num is not null
+        )
+
+    select
+        dispatching_base_num,
+        cast(pickup_datetime as timestamp) as pickup_datetime,
+        cast(dropoff_datetime as timestamp) as dropoff_datetime,
+        {{ dbt.safe_cast("PUlocationID", api.Column.translate_type("integer")) }}
+        as pickup_locationid,
+        {{ dbt.safe_cast("DOlocationID", api.Column.translate_type("integer")) }}
+        as dropoff_locationid,
+        SR_Flag as sr_flag,
+        Affiliated_base_number as affiliated_base_number, 
+    from fhv_tripdata
+    ```
+
+2. Core model for fhv data - `dim_fhv_trips.sql`
+
+    ```sql 
+    {{ config(materialized="table") }}
+
+    with
+        fhv_tripdata as (select * from {{ ref("stg_fhv_tripdata") }}),
+        dim_zones as (select * from {{ ref("dim_zones") }} where borough != 'Unknown')
+
+    select
+        fhv.dispatching_base_num as dispatching_base_num,
+        fhv.pickup_datetime as pickup_datetime,
+        extract(year from fhv.pickup_datetime) as pickup_year,
+        extract(month from fhv.pickup_datetime) as pickup_month,
+        extract(quarter from fhv.pickup_datetime) as pickup_qtr,
+        concat(
+            extract(year from fhv.pickup_datetime),
+            '/Q',
+            extract(quarter from fhv.pickup_datetime)
+        ) as pickup_year_qtr,
+        fhv.dropoff_datetime as dropoff_datetime,
+        fhv.pickup_locationid as pickup_locationid,
+        fhv.dropoff_locationid as dropoff_locationid,
+        dmz_pu.borough as pickup_borough,
+        dmz_do.borough as dropoff_borough,
+        dmz_pu.zone as pickup_zone,
+        dmz_do.zone as dropoff_zone,
+        dmz_pu.service_zone as pickup_service_zone,
+        dmz_do.service_zone as dropoff_service_zone
+    from fhv_tripdata as fhv
+    inner join dim_zones as dmz_pu on fhv.pickup_locationid = dmz_pu.locationid
+    inner join dim_zones as dmz_do on fhv.dropoff_locationid = dmz_do.locationid
+
+    ```
+**Lineage View:**
+
+![lineage](Q7-1.PNG)
+
+**Running the commands below as part of the deploy job:**
+1. `dbt build --select +stg_fhv_tripdata+`
+2. `dbt build --vars '{'is_test_run':'false'}'`
+
+**BigQuery code:**
+
+```sql 
+
+WITH cte AS (
+  SELECT pickup_zone, pickup_year, pickup_month, dropoff_zone, p90,
+         DENSE_RANK() OVER (PARTITION BY pickup_zone 
+                            ORDER BY p90 DESC) AS rnk
+  FROM prod.fct_fhv_monthly_zone_traveltime_p90
+  WHERE pickup_month = 11 AND pickup_year = 2019
+)
+
+SELECT distinct pickup_zone, dropoff_zone, p90 
+FROM cte
+where pickup_zone IN ('Newark Airport', 'SoHo', 'Yorkville East') and rnk = 2;
+```
+
+**Output:**
+
+![alt text](Q7-2.png)
+
+or alternatively, for each pickup zone, for example :
+
+```sql 
+WITH cte AS (
+  SELECT pickup_zone, pickup_year, pickup_month, dropoff_zone, p90,
+         DENSE_RANK() OVER (PARTITION BY pickup_zone 
+                            ORDER BY p90 DESC) AS rnk
+  FROM prod.fct_fhv_monthly_zone_traveltime_p90
+)
+
+SELECT distinct pickup_zone, dropoff_zone, p90, rnk
+FROM cte
+where pickup_zone = 'SoHo' and pickup_year = 2019 and pickup_month = 11
+order by rnk
+limit 1
+offset 1;
+```
+**Output:**
+
+![alt text](image.png)
+
+
+
+<details><summary>Troubleshooting notes</summary>
+I was unable to see the lineage of fhv tripdata models in prod dataset, even after running the deploy jobs (note that it would be available in the dev dataset - zoomcamp, but not in prod). Got node not found message on running dbt build. So, first, I modified the deploy job to run dbt build on +dim_fhv_trips+, still no luck. Then did the same but with the +stg_fhv_tripdata+ and it worked. ALl 10 models were found. 
+</details>
