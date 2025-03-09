@@ -946,7 +946,7 @@ This gives you the `model` details and you can directly copy+paste it into to yo
 
 [YT Link](https://www.youtube.com/watch?v=V2m5C0n8Gro&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=39)
 
-Now that we've deveoped, tested and documented necessary models, schemas and sources. The next step is `Deployment` where we aim to push the project to production (merge the code into the main branch). Later, we'll analyze the data in BigQuery and present the findings in Looker for the stakeholders. 
+Now that we've developed, tested and documented necessary models, schemas and sources. The next step is `Deployment` where we aim to push the project to production (merge the code into the main branch). Later, we'll analyze the data in BigQuery and present the findings in Looker for the stakeholders. 
 
 ![alt text](./images/ae36.png)
 
