@@ -7,7 +7,7 @@
 with tripdata as 
 (
   select *,
-    row_number() over(partition by CAST(vendorid AS STRING), lpep_pickup_datetime) as rn
+    row_number() over(partition by CAST(vendorid AS STRING), lpep_pickup_datetime) as rn --deduplication step
   from {{ source('staging','external_green_tripdata_2019-2020') }}
   where vendorid is not null 
 )
