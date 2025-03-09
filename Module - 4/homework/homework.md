@@ -438,7 +438,7 @@ offset 1;
 ```
 **Output:**
 
-![alt text](image.png)
+![alt text](Q7-3.png)
 
 
 
