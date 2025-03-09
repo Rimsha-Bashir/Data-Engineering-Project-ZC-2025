@@ -392,7 +392,7 @@ Pre-requisites:
     ```
 **Lineage View:**
 
-![lineage](Q7-1.PNG)
+![lineage](Q7-1.png)
 
 **Running the commands below as part of the deploy job:**
 1. `dbt build --select +stg_fhv_tripdata+`
