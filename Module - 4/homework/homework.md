@@ -392,7 +392,7 @@ Pre-requisites:
     ```
 **Lineage View:**
 
-![lineage](Q7-1.PNG)
+![lineage](Q7-1.png)
 
 **Running the commands below as part of the deploy job:**
 1. `dbt build --select +stg_fhv_tripdata+`
@@ -438,9 +438,7 @@ offset 1;
 ```
 **Output:**
 
-![alt text](Q7-3.png)
-
-
+![alt text](Q7-3.PNG)
 
 <details><summary>Troubleshooting notes</summary>
 I was unable to see the lineage of fhv tripdata models in prod dataset, even after running the deploy jobs (note that it would be available in the dev dataset - zoomcamp, but not in prod). Got node not found message on running dbt build. So, first, I modified the deploy job to run dbt build on +dim_fhv_trips+, still no luck. Then did the same but with the +stg_fhv_tripdata+ and it worked. ALl 10 models were found. 
