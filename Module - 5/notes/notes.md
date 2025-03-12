@@ -240,7 +240,7 @@ PySpark integrates directly with the Hadoop ecosystem and distributed storage sy
 
 [YT Link](https://www.youtube.com/watch?v=r_Sf6fCB40c&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=47)
 
-**Explanation of the script: [pyspark_pandas.ipynb](../scripts/pyspark_pandas.ipynb)**
+**Explanation of the script: [pyspark_pandas.ipynb](../scripts/pyspark_pandas_1.ipynb)**
 
 ```python
 import pyspark
@@ -421,7 +421,7 @@ This is inefficient, so we want multiple smaller files instead of one large file
 These smaller units of the file are called `partitions`. To achieve this, Spark has a special command called 
 `df.repartition()`, which takes the number of partitions as a parameter. When we read a file into a DataFrame, Spark creates as many partitions as there are files in the folder.
 
-Executing `df.repartition(24)` does not immediately change the DataFrame because repartitioning is lazy. The change is applied only when we perform an action, such as saving the DataFrame. So, let's save it as Parquet file/write it into a dataframe.
+Executing `df.repartition(24)` does not immediately change the DataFrame because repartitioning is lazy. The change is applied only when we perform an action, such as saving the DataFrame. So, let's save it as Parquet file/write it into a dataframe. (Check [pyspark_pandas_1.ipynb](../scripts/pyspark_pandas_1.ipynb))
 
 ```python 
 df = df.repartition(24)
@@ -430,8 +430,106 @@ df.write.parquet('fhvhv/2021/01')
 
 When we execute this, Spark starts processing. We can see the job in the Spark UI under "Parquet." Clicking on it reveals the partitioning process. The operation is quite expensive, so it takes some time to complete.
 
+![alt text](images/partitions.png)
 
+As you can see above, the files are partitioned. 
 
+![alt text](images/spark_partition_task.png)
+
+This is the summary metrics and status of the partitioning job in SPARK. 
+
+### Spark DataFrames
+
+[YT Link](https://www.youtube.com/watch?v=ti3aC1m3rE8&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=48)
+
+```python
+df = spark.read.parquet("fhvhv/2021/01")
+```
+Now we're reading from the parquet file partitioned in the folder. 
+
+```python 
+df.printSchema()
+```
+Rechecking to make sure the datatypes are correctly set up. 
+
+So, what can we do with a spark dataframe?
+
+1. Selected columns + Action on that column : 
+  
+    `df.select('pickup_datetime','dropoff_datetime','PULocationID', 'DOLocationID').filter(df.hvfhs_license_num=="HV0003")`
+
+    It will display only the specified columns, filtered by the `hvfhs_license_num` column. Add `.show()` to display the table:
+
+    `df.select('pickup_datetime','dropoff_datetime','PULocationID', 'DOLocationID').filter(df.hvfhs_license_num=="HV0003").show()`
+
+    Note that before adding show(), spark will not execute the above. These are `lazy` jobs. It will not be executed right away, just like repartitioning. In Spark, there is a distinction between operations that are executed right away and those that are deferred. These are called `actions and transformations`. 
+
+    Transformations: Transformations are operations that do not execute right away. These operations create a sequence of transformations that Spark tracks internally. Spark does not execute anything immediately. Instead, it builds a logical plan of transformations. For example:
+
+    - select 
+    - filtering
+    - functions 
+    - joins, group by
+
+    However, when we call an action like .show(), Spark evaluates the entire transformation sequence and executes the computation. At this point, Spark processes all previous transformations and returns the result
+
+    Actions: Occur immediately/trigger execution. 
+
+    - show(): Displays the DataFrame.
+    - take(5)/head(5): Retrieves the first five records. 
+    - write.csv() or write.parquet() – Triggers execution to write results to storage.
+
+2. Built in functions in Spark: 
+
+    In Spark, we have pyspark.sql.functions, a collection of functions that Spark provides. To use them, we typically import them as follows:
+
+    `from pyspark.sql import functions as F`
+
+    Using F, we can explore available functions by typing F. and pressing Tab. There are many built-in functions.
+
+    One useful function is to_date(), which extracts only the date from a datetime column, discarding hours, minutes, and seconds.
+
+    We can also use `withColumn()` to create new columns. For example:
+
+    ```python
+    df \
+        .withColumn("pickup_date", F.to_date(df.pickup_datetime)) \
+        .withColumn("dropoff_date", F.to_date(df.dropoff_datetime)) \
+        .show()    
+    ```
+    This code performs the following operations:
+
+    Creates a new column named "pickup_date". Converts the "pickup_datetime" column into a date format using F.to_date().
+
+    Creates another new column named "dropoff_date". Converts the "dropoff_datetime" column to a date format, similar to the previous step. If we use a column name that already exists, Spark overwrites it.
+
+    Finally, we can add a select():
+
+    ```python
+    df \
+        .withColumn("pickup_date", F.to_date(df.pickup_datetime)) \
+        .withColumn("dropoff_date", F.to_date(df.dropoff_datetime)) \
+        .select("pickup_date","dropoff_date","PULocationID","DOLocationID") \
+        .show()    
+    ```
+
+3. User defined functions: 
+
+    Let's say we have a function `xyz()`  that performs complex logic, something not easy to express with SQL. We'll write a python function, with the usual syntax. and then turn it into a UDF in PySpark:
+
+    ```python
+    def xyz():
+    {
+      ...
+    }
+
+    xyzf_udf = F.udf(xyz, returnType=types.StringType()) # it can be any returntype.
+    ```
+    ```python
+
+    df.withcolumn('output_column', xyz_udf(df.input_column)) # will create a column based on the output from the xyz() function in the spark df 
+    
+    ```
 ### Troubleshooting 
 
 1. `ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it`
@@ -461,3 +559,5 @@ When we execute this, Spark starts processing. We can see the job in the Spark U
     Solution: 
     - Set sys env variable HADOOP_HOME and assign the value - `C:\tools\hadoop-3.2.0` to it. 
     - Set it in the $PATH under SYS variables. 
+
+3. Faced other issues + depedency errors: Downgraded python and pandas because the python installed on my system is of 3.13 version which is not compatible with other installations of pyspark, java, hadoop, spark etc. I created a conda env `pyspark_env` (running python version 3.10.*) and in that env, I removed/uninstalled existing pandas (version>2) and numpy (version>2), then reinstalled `pandas 1.5.3` and `numpy 1.23.5` respectively. 
