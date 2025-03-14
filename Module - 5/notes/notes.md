@@ -530,6 +530,131 @@ So, what can we do with a spark dataframe?
     df.withcolumn('output_column', xyz_udf(df.input_column)) # will create a column based on the output from the xyz() function in the spark df 
     
     ```
+
+### SQL with Spark:
+
+[YT Link](https://www.youtube.com/watch?v=uAlp2VuZZPY&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=50)
+
+Running the file [taxi_data_to_pq.ipynb](../scripts/taxi_data_to_pq.ipynb). <br>
+(Note: To understand how the data was ingested using [download_data.sh](../scripts/download_data.sh), check the YT video linked [here](https://www.youtube.com/watch?v=CI3P4tAtru4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=49&pp=iAQB)). <br> I have only downloaded the data from 2020, for both the service_types to perform the next steps. 
+
+**[spark_sql.ipynb](../scripts/spark_sql.ipynb)**
+
+1. We read from the parquet files created in taxi_data_to_pq.ipynb. <br>
+  ```python
+  df_green = spark.read.parquet('data/pq/green/2020/*/*')
+  ```
+  ```python
+  df_yellow = spark.read.parquet('data/pq/yellow/2020/*')
+  ```
+
+2. Rename the pickup and dropoff datetime columns from green and yellow tables. 
+
+  ```python
+  df_yellow = df_yellow \
+      .withColumnRenamed('tpep_pickup_datetime', 'pickup_datetime') \
+      .withColumnRenamed('tpep_dropoff_datetime', 'dropoff_datetime')
+  ```
+
+  Similarly, with green dataframe as well. Here, we're trying to execute an SQL model from dbt, and aim to create a unified table/dataframe with both green and yellow table.  
+
+3. Finding common columns, and preserving the order. to unify the data, we will select only the common columns between both datasets.
+
+  ```python 
+  common_colums = []
+
+  yellow_columns = set(df_yellow.columns)
+
+  for col in df_green.columns:
+      if col in yellow_columns:
+          common_colums.append(col)
+  ```
+
+4. To add a new column called `serivce_type`.
+
+  ```python 
+  from pyspark.sql import functions as F
+
+  df_green_sel = df_green \
+      .select(common_colums) \
+      .withColumn('service_type', F.lit('green'))
+
+  df_yellow_sel = df_yellow \
+      .select(common_colums) \
+      .withColumn('service_type', F.lit('yellow'))
+  ```
+  F.lit() is for `literal`
+
+5. Combine the dataframes and verify. 
+
+  ```python 
+    df_trips_data = df_green_sel.unionAll(df_yellow_sel)
+  ```
+  To check is the merge has happened, successfully 
+
+  ```python 
+  df_trips_data.groupBy('service_type').count().show()
+  ```
+
+  ![alt text](./images/df_trips_data.png)
+
+6. Querying in SQL. 
+
+  ```python
+  df_trips_data.registerTempTable('trips_data')
+  spark.sql("""
+  SELECT
+      service_type,
+      count(1)
+  FROM
+      trips_data
+  GROUP BY 
+      service_type
+  """).show()
+  ```
+  First, we want to register the _dataframe_ as a _table_. Then, we query the table using `spark.sql("""query""")`. 
+  
+  ![alt text](./images/spark_sql_1.png)
+
+7. Run the model query from dbt. 
+
+  ```python 
+  df_result = spark.sql("""
+  SELECT 
+      -- Revenue grouping 
+      PULocationID AS revenue_zone,
+      date_trunc('month', pickup_datetime) AS revenue_month, 
+      service_type, 
+
+      -- Revenue calculation 
+      SUM(fare_amount) AS revenue_monthly_fare,
+      SUM(extra) AS revenue_monthly_extra,
+      SUM(mta_tax) AS revenue_monthly_mta_tax,
+      SUM(tip_amount) AS revenue_monthly_tip_amount,
+      SUM(tolls_amount) AS revenue_monthly_tolls_amount,
+      SUM(improvement_surcharge) AS revenue_monthly_improvement_surcharge,
+      SUM(total_amount) AS revenue_monthly_total_amount,
+      SUM(congestion_surcharge) AS revenue_monthly_congestion_surcharge,
+
+      -- Additional calculations
+      AVG(passenger_count) AS avg_monthly_passenger_count,
+      AVG(trip_distance) AS avg_monthly_trip_distance
+  FROM
+      trips_data
+  GROUP BY
+      1, 2, 3
+  """)
+  ```
+
+  If you add `.show()` to the above code, you get: <br>
+  ![alt text](dbt_query_1.png)
+
+8. Write the result into parquet
+
+  ```python
+  df_result.coalesce(1).write.parquet('data/report/revenue/', mode='overwrite') 
+  ```
+
 ### Troubleshooting 
 
 1. `ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it`
